@@ -1,0 +1,20 @@
+# Environment
+.env
+
+# Backend
+backend/tmp/
+backend/vetkb-api
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
