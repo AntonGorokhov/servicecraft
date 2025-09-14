@@ -33,22 +33,3 @@ export const CATEGORY_LABELS: Record<string, string> = {
   oncology:        "Онкология",
   general:         "Общее",
 };
-
-export interface DemoCluster {
-  id: string;
-  name: string;
-  category: string;
-  callCount: number;
-  lastUpdated: string;
-  steps: number;
-  exceptions: number;
-}
-
-export const DEMO_CLUSTERS: DemoCluster[] = [
-  { id: "cat_sterilization",  name: "Стерилизация кошки",  category: "preventive", callCount: 12, lastUpdated: "1 мар",  steps: 6, exceptions: 3 },
-  { id: "blood_in_urine",     name: "Кровь в моче",        category: "urological", callCount: 8,  lastUpdated: "28 фев", steps: 4, exceptions: 2 },
-  { id: "poisoning",          name: "Отравление",           category: "emergency",  callCount: 3,  lastUpdated: "25 фев", steps: 5, exceptions: 2 },
-  { id: "price_inquiry",      name: "Узнать цену",          category: "admin",      callCount: 15, lastUpdated: "2 мар",  steps: 3, exceptions: 1 },
-  { id: "dog_vaccination",    name: "Вакцинация щенка",    category: "preventive", callCount: 7,  lastUpdated: "27 фев", steps: 5, exceptions: 2 },
-  { id: "tick_bite",          name: "Укус клеща",            category: "emergency",  callCount: 5,  lastUpdated: "26 фев", steps: 4, exceptions: 3 },
-];

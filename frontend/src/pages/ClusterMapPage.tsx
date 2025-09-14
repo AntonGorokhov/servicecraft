@@ -1,12 +1,9 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  DEMO_CLUSTERS,
-  CATEGORY_COLORS,
-  CATEGORY_LABELS,
-  type DemoCluster,
-} from "../constants/categories";
+import { CATEGORY_COLORS, CATEGORY_LABELS } from "../constants/categories";
+import type { Article } from "../constants/mockData";
 import { squarify } from "../lib/treemap";
+import client from "../api/client";
 
 const TREEMAP_HEIGHT = 500;
 
@@ -21,15 +18,25 @@ export function ClusterMapPage() {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState<string | null>(null);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    client
+      .get("/articles")
+      .then((res) => setArticles(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   const items = useMemo(
     () =>
-      DEMO_CLUSTERS.map((c) => ({
-        id: c.id,
-        value: c.callCount,
+      articles.map((c) => ({
+        id: c.slug,
+        value: c.call_count,
         cluster: c,
       })),
-    []
+    [articles]
   );
 
   const rects = useMemo(
@@ -38,9 +45,25 @@ export function ClusterMapPage() {
   );
 
   const usedCategories = useMemo(() => {
-    const cats = new Set(DEMO_CLUSTERS.map((c) => c.category));
+    const cats = new Set(articles.map((c) => c.category));
     return [...cats];
-  }, []);
+  }, [articles]);
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center">
+        <p className="text-sm text-gray-400">Загрузка...</p>
+      </div>
+    );
+  }
+
+  if (articles.length === 0) {
+    return (
+      <div className="py-20 text-center">
+        <p className="text-sm text-gray-400">Нет данных для отображения</p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -59,12 +82,12 @@ export function ClusterMapPage() {
         style={{ height: TREEMAP_HEIGHT }}
       >
         {rects.map((r) => {
-          const cluster = r.item.cluster as DemoCluster;
+          const cluster = r.item.cluster as Article;
           const colors =
             CATEGORY_COLORS[cluster.category] ?? CATEGORY_COLORS.general;
           const label =
             CATEGORY_LABELS[cluster.category] ?? cluster.category;
-          const isHovered = hovered === cluster.id;
+          const isHovered = hovered === cluster.slug;
 
           const widthPx = (r.w / 100) * (containerRef.current?.clientWidth ?? 800);
           const heightPx = (r.h / 100) * TREEMAP_HEIGHT;
@@ -73,9 +96,9 @@ export function ClusterMapPage() {
 
           return (
             <div
-              key={cluster.id}
-              onClick={() => navigate(`/articles/${cluster.id}`)}
-              onMouseEnter={() => setHovered(cluster.id)}
+              key={cluster.slug}
+              onClick={() => navigate(`/articles/${cluster.slug}`)}
+              onMouseEnter={() => setHovered(cluster.slug)}
               onMouseLeave={() => setHovered(null)}
               className={`absolute cursor-pointer border border-white/60 p-2 transition-all duration-150
                 ${isHovered ? "z-10 ring-2 ring-blue-400 shadow-lg" : ""}`}
@@ -90,7 +113,7 @@ export function ClusterMapPage() {
               <div className="flex h-full flex-col justify-between overflow-hidden">
                 {isTiny ? (
                   <span className="text-xs font-bold text-gray-700">
-                    {cluster.callCount}
+                    {cluster.call_count}
                   </span>
                 ) : isSmall ? (
                   <>
@@ -98,7 +121,7 @@ export function ClusterMapPage() {
                       {cluster.name}
                     </span>
                     <span className="text-xs font-bold text-gray-600">
-                      {cluster.callCount}
+                      {cluster.call_count}
                     </span>
                   </>
                 ) : (
@@ -119,7 +142,7 @@ export function ClusterMapPage() {
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <span className="font-bold text-gray-700">
-                        {cluster.callCount} звонков
+                        {cluster.call_count} звонков
                       </span>
                       <span>·</span>
                       <span>{cluster.steps} шагов</span>
@@ -133,10 +156,10 @@ export function ClusterMapPage() {
               {isHovered && (
                 <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-52 -translate-x-1/2 rounded-lg bg-gray-900 p-3 text-xs text-white shadow-xl">
                   <p className="mb-1 font-semibold">{cluster.name}</p>
-                  <p>Звонков: {cluster.callCount}</p>
+                  <p>Звонков: {cluster.call_count}</p>
                   <p>Шагов: {cluster.steps}</p>
                   <p>Исключений: {cluster.exceptions}</p>
-                  <p>Обновлено: {cluster.lastUpdated}</p>
+                  <p>Обновлено: {cluster.last_updated}</p>
                   <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                 </div>
               )}

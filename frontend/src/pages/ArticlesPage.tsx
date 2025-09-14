@@ -1,23 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ClusterCard } from "../components/ClusterCard";
-import {
-  DEMO_CLUSTERS,
-  CATEGORY_LABELS,
-  CATEGORY_COLORS,
-} from "../constants/categories";
+import { CATEGORY_LABELS, CATEGORY_COLORS } from "../constants/categories";
+import type { Article } from "../constants/mockData";
+import client from "../api/client";
 
 export function ArticlesPage() {
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
 
-  const categories = Array.from(new Set(DEMO_CLUSTERS.map((c) => c.category)));
+  useEffect(() => {
+    client
+      .get("/articles")
+      .then((res) => setArticles(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
-  const filtered = DEMO_CLUSTERS.filter((c) => {
+  const categories = Array.from(new Set(articles.map((c) => c.category)));
+
+  const filtered = articles.filter((c) => {
     if (category !== "all" && c.category !== category) return false;
     if (search && !c.name.toLowerCase().includes(search.toLowerCase()))
       return false;
     return true;
   });
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center">
+        <p className="text-sm text-gray-400">Загрузка...</p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -27,7 +43,7 @@ export function ArticlesPage() {
           Статьи
         </h1>
         <p className="mt-1 text-sm text-gray-400">
-          {DEMO_CLUSTERS.length} кластеров знаний
+          {articles.length} кластеров знаний
         </p>
       </div>
 

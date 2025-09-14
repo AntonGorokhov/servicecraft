@@ -14,6 +14,8 @@ type User struct {
 	PasswordHash string    `json:"-" gorm:"not null"`
 	Name         string    `json:"name"`
 	Role         string    `json:"role" gorm:"default:operator"`
+	CompanyID    *uint     `json:"company_id" gorm:"index"`
+	Company      *Company  `json:"company,omitempty" gorm:"foreignKey:CompanyID"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -32,16 +34,23 @@ func (u *User) CheckPassword(password string) bool {
 }
 
 func SeedAdmin(db *gorm.DB, email, password string) {
-	var count int64
-	db.Model(&User{}).Where("role = ?", "admin").Count(&count)
-	if count > 0 {
+	var user User
+	// Try to find existing user by email to upgrade
+	if err := db.Where("email = ?", email).First(&user).Error; err == nil {
+		// User exists — upgrade to superadmin if needed
+		if user.Role != "superadmin" {
+			db.Model(&user).Update("role", "superadmin")
+			db.Model(&user).Update("company_id", nil)
+			log.Printf("Upgraded user %s to superadmin", email)
+		}
 		return
 	}
 
+	// No user with this email — create superadmin
 	admin := User{
 		Email: email,
 		Name:  "Admin",
-		Role:  "admin",
+		Role:  "superadmin",
 	}
 	if err := admin.SetPassword(password); err != nil {
 		log.Fatalf("Failed to hash admin password: %v", err)
@@ -49,5 +58,5 @@ func SeedAdmin(db *gorm.DB, email, password string) {
 	if err := db.Create(&admin).Error; err != nil {
 		log.Fatalf("Failed to seed admin user: %v", err)
 	}
-	log.Printf("Admin user created: %s", email)
+	log.Printf("Superadmin user created: %s", email)
 }

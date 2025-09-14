@@ -23,6 +23,7 @@ type Claims struct {
 	UserID    uint   `json:"user_id"`
 	Email     string `json:"email"`
 	Role      string `json:"role"`
+	CompanyID *uint  `json:"company_id,omitempty"`
 	TokenType string `json:"token_type"`
 	jwt.RegisteredClaims
 }
@@ -33,7 +34,7 @@ func NewAuthService(db *gorm.DB, secret string) *AuthService {
 
 func (s *AuthService) Login(email, password string) (*TokenPair, *models.User, error) {
 	var user models.User
-	if err := s.db.Where("email = ?", email).First(&user).Error; err != nil {
+	if err := s.db.Preload("Company").Where("email = ?", email).First(&user).Error; err != nil {
 		return nil, nil, errors.New("invalid credentials")
 	}
 	if !user.CheckPassword(password) {
@@ -57,7 +58,7 @@ func (s *AuthService) RefreshToken(refreshToken string) (*TokenPair, error) {
 	}
 
 	var user models.User
-	if err := s.db.First(&user, claims.UserID).Error; err != nil {
+	if err := s.db.Preload("Company").First(&user, claims.UserID).Error; err != nil {
 		return nil, errors.New("user not found")
 	}
 
@@ -77,10 +78,36 @@ func (s *AuthService) ValidateAccessToken(tokenStr string) (*Claims, error) {
 
 func (s *AuthService) GetUserByID(id uint) (*models.User, error) {
 	var user models.User
-	if err := s.db.First(&user, id).Error; err != nil {
+	if err := s.db.Preload("Company").First(&user, id).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (s *AuthService) UpdateProfile(userID uint, name string) (*models.User, error) {
+	var user models.User
+	if err := s.db.First(&user, userID).Error; err != nil {
+		return nil, errors.New("user not found")
+	}
+	user.Name = name
+	if err := s.db.Save(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (s *AuthService) ChangePassword(userID uint, currentPassword, newPassword string) error {
+	var user models.User
+	if err := s.db.First(&user, userID).Error; err != nil {
+		return errors.New("user not found")
+	}
+	if !user.CheckPassword(currentPassword) {
+		return errors.New("current password is incorrect")
+	}
+	if err := user.SetPassword(newPassword); err != nil {
+		return err
+	}
+	return s.db.Save(&user).Error
 }
 
 func (s *AuthService) generateTokenPair(user *models.User) (*TokenPair, error) {
@@ -90,6 +117,7 @@ func (s *AuthService) generateTokenPair(user *models.User) (*TokenPair, error) {
 		UserID:    user.ID,
 		Email:     user.Email,
 		Role:      user.Role,
+		CompanyID: user.CompanyID,
 		TokenType: "access",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(15 * time.Minute)),
@@ -105,6 +133,7 @@ func (s *AuthService) generateTokenPair(user *models.User) (*TokenPair, error) {
 		UserID:    user.ID,
 		Email:     user.Email,
 		Role:      user.Role,
+		CompanyID: user.CompanyID,
 		TokenType: "refresh",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(7 * 24 * time.Hour)),

@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
 export function Sidebar() {
@@ -39,17 +39,42 @@ export function Sidebar() {
           </svg>
           База знаний
         </NavLink>
+
+        {user?.role === "superadmin" && (
+          <NavLink
+            to="/companies"
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                isActive
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              }`
+            }
+          >
+            <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+            </svg>
+            Компании
+          </NavLink>
+        )}
       </nav>
 
       {/* User section */}
       <div className="border-t border-gray-200/60 px-3 py-3">
         <div className="flex items-center gap-3 px-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-xs font-bold text-white shadow-sm">
+          <Link
+            to="/profile"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-xs font-bold text-white shadow-sm transition-shadow hover:shadow-md"
+            title="Профиль"
+          >
             {initials}
-          </div>
-          <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-700">
+          </Link>
+          <Link
+            to="/profile"
+            className="min-w-0 flex-1 truncate text-sm font-medium text-gray-700 hover:text-gray-900"
+          >
             {user?.name}
-          </span>
+          </Link>
           <button
             onClick={logout}
             title="Выйти"

@@ -31,6 +31,20 @@ func AuthRequired(authService *services.AuthService) gin.HandlerFunc {
 		c.Set("userID", claims.UserID)
 		c.Set("userEmail", claims.Email)
 		c.Set("userRole", claims.Role)
+		if claims.CompanyID != nil {
+			c.Set("companyID", *claims.CompanyID)
+		}
+		c.Next()
+	}
+}
+
+func SuperadminRequired() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role, exists := c.Get("userRole")
+		if !exists || role.(string) != "superadmin" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Superadmin access required"})
+			return
+		}
 		c.Next()
 	}
 }

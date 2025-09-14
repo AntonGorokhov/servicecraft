@@ -11,7 +11,9 @@ export interface User {
   id: number;
   email: string;
   name: string;
-  role: string;
+  role: "superadmin" | "admin" | "operator";
+  company_id?: number;
+  company_name?: string;
 }
 
 interface AuthContextType {
@@ -19,6 +21,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
 }
 
 export const AuthContext = createContext<AuthContextType>(null!);
@@ -39,6 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(res.data.access_token);
     localStorage.setItem("refresh_token", res.data.refresh_token);
     setUser(res.data.user);
+  }, []);
+
+  const updateUser = useCallback((updates: Partial<User>) => {
+    setUser((prev) => (prev ? { ...prev, ...updates } : prev));
   }, []);
 
   // Restore session from refresh token on mount
@@ -64,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -33,15 +33,23 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	userData := gin.H{
+		"id":    user.ID,
+		"email": user.Email,
+		"name":  user.Name,
+		"role":  user.Role,
+	}
+	if user.CompanyID != nil {
+		userData["company_id"] = *user.CompanyID
+	}
+	if user.Company != nil {
+		userData["company_name"] = user.Company.Name
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"access_token":  pair.AccessToken,
 		"refresh_token": pair.RefreshToken,
-		"user": gin.H{
-			"id":    user.ID,
-			"email": user.Email,
-			"name":  user.Name,
-			"role":  user.Role,
-		},
+		"user":          userData,
 	})
 }
 
@@ -81,10 +89,18 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	resp := gin.H{
 		"id":    user.ID,
 		"email": user.Email,
 		"name":  user.Name,
 		"role":  user.Role,
-	})
+	}
+	if user.CompanyID != nil {
+		resp["company_id"] = *user.CompanyID
+	}
+	if user.Company != nil {
+		resp["company_name"] = user.Company.Name
+	}
+
+	c.JSON(http.StatusOK, resp)
 }

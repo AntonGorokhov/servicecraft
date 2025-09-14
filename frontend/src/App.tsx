@@ -6,6 +6,8 @@ import { ArticlesPage } from "./pages/ArticlesPage";
 import { ArticleDetailPage } from "./pages/ArticleDetailPage";
 import { ClusterMapPage } from "./pages/ClusterMapPage";
 import { DialogGraphPage } from "./pages/DialogGraphPage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { CompaniesPage } from "./pages/CompaniesPage";
 
 export default function App() {
   return (
@@ -17,6 +19,8 @@ export default function App() {
           <Route path="/articles/:id" element={<ArticleDetailPage />} />
           <Route path="/clusters" element={<ClusterMapPage />} />
           <Route path="/graph" element={<DialogGraphPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/companies" element={<CompaniesPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/articles" replace />} />

@@ -17,18 +17,24 @@ func main() {
 	db := database.Connect(cfg)
 
 	// AutoMigrate
-	if err := db.AutoMigrate(&models.User{}); err != nil {
+	if err := db.AutoMigrate(&models.Company{}, &models.User{}, &models.Article{}); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}
 
-	// Seed admin user
+	// Seed
 	models.SeedAdmin(db, cfg.AdminEmail, cfg.AdminPassword)
+	models.SeedArticles(db)
 
 	// Services
 	authService := services.NewAuthService(db, cfg.JWTSecret)
+	companyService := services.NewCompanyService(db)
+	articleService := services.NewArticleService(db)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
+	profileHandler := handlers.NewProfileHandler(authService)
+	companyHandler := handlers.NewCompanyHandler(companyService)
+	articleHandler := handlers.NewArticleHandler(articleService)
 
 	r := gin.Default()
 	r.Use(middleware.CORS())
@@ -48,6 +54,24 @@ func main() {
 	protected := api.Group("")
 	protected.Use(middleware.AuthRequired(authService))
 	protected.GET("/auth/me", authHandler.Me)
+	protected.PUT("/auth/profile", profileHandler.UpdateProfile)
+	protected.PUT("/auth/password", profileHandler.ChangePassword)
+
+	// Article routes (authenticated)
+	protected.GET("/articles", articleHandler.List)
+	protected.GET("/articles/:slug", articleHandler.GetBySlug)
+	protected.POST("/articles", articleHandler.Create)
+	protected.PUT("/articles/:slug", articleHandler.Update)
+	protected.DELETE("/articles/:slug", articleHandler.Delete)
+
+	// Superadmin routes
+	admin := protected.Group("/admin")
+	admin.Use(middleware.SuperadminRequired())
+	admin.POST("/companies", companyHandler.Create)
+	admin.GET("/companies", companyHandler.List)
+	admin.DELETE("/companies/:id", companyHandler.Delete)
+	admin.POST("/companies/:id/users", companyHandler.CreateUser)
+	admin.GET("/companies/:id/users", companyHandler.ListUsers)
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("Server failed: %v", err)

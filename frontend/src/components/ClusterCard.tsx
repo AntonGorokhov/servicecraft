@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
-import { CATEGORY_COLORS, CATEGORY_LABELS, type DemoCluster } from "../constants/categories";
+import { CATEGORY_COLORS, CATEGORY_LABELS } from "../constants/categories";
+import type { Article } from "../constants/mockData";
 
 interface Props {
-  cluster: DemoCluster;
+  cluster: Article;
 }
 
 export function ClusterCard({ cluster }: Props) {
@@ -11,7 +12,7 @@ export function ClusterCard({ cluster }: Props) {
 
   return (
     <Link
-      to={`/articles/${cluster.id}`}
+      to={`/articles/${cluster.slug}`}
       className="group block rounded-xl border border-gray-200/80 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/50"
       style={{ borderLeftWidth: 3, borderLeftColor: colors.dot }}
     >
@@ -38,9 +39,9 @@ export function ClusterCard({ cluster }: Props) {
         </h3>
 
         <div className="mb-3 flex items-center gap-1.5 text-sm text-gray-400">
-          <span>{cluster.callCount} звонков</span>
+          <span>{cluster.call_count} звонков</span>
           <span>·</span>
-          <span>{cluster.lastUpdated}</span>
+          <span>{cluster.last_updated}</span>
         </div>
 
         <div className="flex items-center gap-3 text-xs text-gray-400">
