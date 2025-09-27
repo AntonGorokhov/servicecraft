@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -69,6 +70,24 @@ func (s *ArticleService) Update(companyID *uint, slug string, updates map[string
 	// Reload to return fresh data
 	s.db.First(article, article.ID)
 	return article, nil
+}
+
+// ListWithEmbeddings returns articles with their embedding vectors, filtered by company.
+func (s *ArticleService) ListWithEmbeddings(companyID *uint) ([]models.Article, error) {
+	var articles []models.Article
+	q := s.db.Select("id, company_id, slug, name, category, content, embedding")
+	if companyID != nil {
+		q = q.Where("company_id = ?", *companyID)
+	}
+	if err := q.Find(&articles).Error; err != nil {
+		return nil, err
+	}
+	return articles, nil
+}
+
+// UpdateEmbedding updates just the embedding field for an article.
+func (s *ArticleService) UpdateEmbedding(articleID uint, embedding json.RawMessage) error {
+	return s.db.Model(&models.Article{}).Where("id = ?", articleID).Update("embedding", embedding).Error
 }
 
 // Delete deletes an article by slug, respecting company isolation.

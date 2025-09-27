@@ -20,6 +20,7 @@ type Article struct {
 	Exceptions  int             `json:"exceptions" gorm:"default:0"`
 	LastUpdated string          `json:"last_updated"`
 	Content     json.RawMessage `json:"content" gorm:"type:jsonb;default:'{}'"`
+	Embedding   json.RawMessage `json:"-" gorm:"type:jsonb"`
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
 }

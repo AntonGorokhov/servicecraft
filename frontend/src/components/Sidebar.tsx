@@ -40,6 +40,24 @@ export function Sidebar() {
           База знаний
         </NavLink>
 
+        {(user?.role === "admin" || user?.role === "superadmin") && (
+          <NavLink
+            to="/pipeline"
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                isActive
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              }`
+            }
+          >
+            <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+            </svg>
+            Pipeline
+          </NavLink>
+        )}
+
         {user?.role === "superadmin" && (
           <NavLink
             to="/companies"

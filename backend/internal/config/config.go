@@ -11,6 +11,9 @@ type Config struct {
 	JWTSecret        string
 	AdminEmail       string
 	AdminPassword    string
+	ReplicateToken   string
+	QdrantHost       string
+	QdrantPort       string
 }
 
 func Load() *Config {
@@ -23,6 +26,9 @@ func Load() *Config {
 		JWTSecret:        getEnv("JWT_SECRET", "dev-secret-change-me"),
 		AdminEmail:       getEnv("ADMIN_EMAIL", "admin@vetkb.local"),
 		AdminPassword:    getEnv("ADMIN_PASSWORD", "admin123"),
+		ReplicateToken:   getEnv("REPLICATE_API_TOKEN", ""),
+		QdrantHost:       getEnv("QDRANT_HOST", "localhost"),
+		QdrantPort:       getEnv("QDRANT_PORT", "6333"),
 	}
 }
 

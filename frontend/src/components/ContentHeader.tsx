@@ -4,6 +4,7 @@ const tabs = [
   { to: "/articles", label: "Статьи" },
   { to: "/clusters", label: "Кластеры" },
   { to: "/graph", label: "Граф" },
+  { to: "/pipeline", label: "Pipeline" },
 ];
 
 export function ContentHeader() {

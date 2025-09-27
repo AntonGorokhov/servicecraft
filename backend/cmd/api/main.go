@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/vetkb/backend/internal/config"
@@ -9,6 +10,7 @@ import (
 	"github.com/vetkb/backend/internal/handlers"
 	"github.com/vetkb/backend/internal/middleware"
 	"github.com/vetkb/backend/internal/models"
+	"github.com/vetkb/backend/internal/pipeline"
 	"github.com/vetkb/backend/internal/services"
 )
 
@@ -30,11 +32,23 @@ func main() {
 	companyService := services.NewCompanyService(db)
 	articleService := services.NewArticleService(db)
 
+	// Qdrant
+	qdrantPort, _ := strconv.Atoi(cfg.QdrantPort)
+	qdrantService, err := pipeline.NewQdrantService(cfg.QdrantHost, qdrantPort)
+	if err != nil {
+		log.Fatalf("Qdrant init failed: %v", err)
+	}
+	defer qdrantService.Close()
+
+	// Pipeline
+	pipelineService := pipeline.NewPipelineService(cfg.ReplicateToken, qdrantService, articleService)
+
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	profileHandler := handlers.NewProfileHandler(authService)
 	companyHandler := handlers.NewCompanyHandler(companyService)
 	articleHandler := handlers.NewArticleHandler(articleService)
+	pipelineHandler := handlers.NewPipelineHandler(pipelineService)
 
 	r := gin.Default()
 	r.Use(middleware.CORS())
@@ -63,6 +77,9 @@ func main() {
 	protected.POST("/articles", articleHandler.Create)
 	protected.PUT("/articles/:slug", articleHandler.Update)
 	protected.DELETE("/articles/:slug", articleHandler.Delete)
+
+	// Pipeline routes (admin or superadmin)
+	protected.POST("/pipeline/process", pipelineHandler.Process)
 
 	// Superadmin routes
 	admin := protected.Group("/admin")

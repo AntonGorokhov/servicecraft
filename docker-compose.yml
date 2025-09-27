@@ -30,6 +30,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-to-a-random-secret-at-least-32-chars}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@vetkb.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy
