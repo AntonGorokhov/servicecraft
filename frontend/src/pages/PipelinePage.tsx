@@ -29,10 +29,37 @@ const STAGES: { key: Stage; label: string; icon: string; description: string }[]
   { key: "classifying",   label: "Классификация",  icon: "brain",       description: "Сопоставляем со статьями" },
 ];
 
+/* ─── Batch Types ────────────────────────────────────────── */
+
+type FileStatus = "pending" | "uploading" | "transcribing" | "segmenting" | "classifying" | "done" | "error";
+
+interface FileJob {
+  id: string;
+  file: File;
+  status: FileStatus;
+  result?: PipelineResult;
+  error?: string;
+}
+
+type BatchMode = "select" | "processing" | "done";
+
+const MAX_FILES = 20;
+const MAX_CONCURRENCY = 5;
+
+/* ─── Helpers ────────────────────────────────────────────── */
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 /* ─── Component ──────────────────────────────────────────── */
 
 export function PipelinePage() {
   const { user } = useAuth();
+
+  // Single-file mode state
   const [stage, setStage] = useState<Stage>("idle");
   const [result, setResult] = useState<PipelineResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,9 +68,14 @@ export function PipelinePage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const stageTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Batch mode state
+  const [files, setFiles] = useState<FileJob[]>([]);
+  const [batchMode, setBatchMode] = useState<BatchMode | null>(null);
+  const [wasTrimmed, setWasTrimmed] = useState(false);
+
   const canUse = user?.role === "admin" || user?.role === "superadmin";
 
-  // Simulated stage progression while waiting for the server
+  // Simulated stage progression (single-file)
   const startStageSimulation = useCallback(() => {
     const sequence: Stage[] = ["uploading", "transcribing", "segmenting", "classifying"];
     let idx = 0;
@@ -54,7 +86,6 @@ export function PipelinePage() {
       if (idx < sequence.length) {
         setStage(sequence[idx]);
       } else {
-        // Stay on classifying until real response
         if (stageTimerRef.current) clearInterval(stageTimerRef.current);
       }
     }, 4000);
@@ -69,7 +100,8 @@ export function PipelinePage() {
 
   useEffect(() => () => stopSimulation(), [stopSimulation]);
 
-  const processFile = useCallback(
+  // Single file processing
+  const processSingleFile = useCallback(
     async (file: File) => {
       setError(null);
       setResult(null);
@@ -105,29 +137,124 @@ export function PipelinePage() {
     [startStageSimulation, stopSimulation]
   );
 
+  // Handle file selection (single or batch)
+  const handleFiles = useCallback(
+    (selectedFiles: File[]) => {
+      if (selectedFiles.length === 0) return;
+
+      if (selectedFiles.length === 1) {
+        processSingleFile(selectedFiles[0]);
+        return;
+      }
+
+      // Batch mode
+      setWasTrimmed(selectedFiles.length > MAX_FILES);
+      const trimmed = selectedFiles.slice(0, MAX_FILES);
+      const jobs: FileJob[] = trimmed.map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+        status: "pending" as FileStatus,
+      }));
+      setFiles(jobs);
+      setBatchMode("select");
+    },
+    [processSingleFile]
+  );
+
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setDragOver(false);
-      const file = e.dataTransfer.files[0];
-      if (file) processFile(file);
+      handleFiles(Array.from(e.dataTransfer.files));
     },
-    [processFile]
+    [handleFiles]
   );
 
   const onFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) processFile(file);
+      handleFiles(Array.from(e.target.files || []));
     },
-    [processFile]
+    [handleFiles]
   );
+
+  const removeFile = useCallback((id: string) => {
+    setFiles((prev) => {
+      const next = prev.filter((f) => f.id !== id);
+      if (next.length === 0) setBatchMode(null);
+      return next;
+    });
+  }, []);
+
+  // Batch processing with concurrency limit
+  const processAll = useCallback(async () => {
+    setBatchMode("processing");
+
+    const updateJob = (id: string, update: Partial<FileJob>) => {
+      setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, ...update } : f)));
+    };
+
+    const processOneFile = async (job: FileJob) => {
+      const stages: FileStatus[] = ["uploading", "transcribing", "segmenting", "classifying"];
+      let stageIdx = 0;
+      updateJob(job.id, { status: stages[0] });
+
+      const timer = setInterval(() => {
+        stageIdx++;
+        if (stageIdx < stages.length) {
+          updateJob(job.id, { status: stages[stageIdx] });
+        } else {
+          clearInterval(timer);
+        }
+      }, 4000);
+
+      try {
+        const form = new FormData();
+        form.append("audio", job.file);
+
+        const resp = await fetch("/api/pipeline/process", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${getAccessToken()}` },
+          body: form,
+        });
+
+        clearInterval(timer);
+
+        if (!resp.ok) {
+          const body = await resp.json().catch(() => ({ error: "Unknown error" }));
+          throw new Error(body.error || `HTTP ${resp.status}`);
+        }
+
+        const data: PipelineResult = await resp.json();
+        updateJob(job.id, { status: "done", result: data });
+      } catch (e: any) {
+        clearInterval(timer);
+        updateJob(job.id, { status: "error", error: e.message || "Pipeline failed" });
+      }
+    };
+
+    // Semaphore: N workers pulling from a shared queue
+    const queue = [...files];
+    const runNext = async (): Promise<void> => {
+      const job = queue.shift();
+      if (!job) return;
+      await processOneFile(job);
+      await runNext();
+    };
+
+    const workers = Math.min(MAX_CONCURRENCY, queue.length);
+    await Promise.all(Array.from({ length: workers }, () => runNext()));
+
+    setBatchMode("done");
+  }, [files]);
 
   const reset = () => {
     setStage("idle");
     setResult(null);
     setError(null);
     setFileName(null);
+    setFiles([]);
+    setBatchMode(null);
+    setWasTrimmed(false);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -142,11 +269,12 @@ export function PipelinePage() {
   }
 
   const isProcessing = !["idle", "done", "error"].includes(stage);
+  const isIdle = stage === "idle" && batchMode === null;
 
   return (
     <div className="space-y-8">
       {/* Upload zone */}
-      {stage === "idle" && (
+      {isIdle && (
         <UploadZone
           dragOver={dragOver}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -157,13 +285,30 @@ export function PipelinePage() {
         />
       )}
 
-      {/* Processing animation */}
-      {isProcessing && (
+      {/* Batch: File list (select mode) */}
+      {batchMode === "select" && (
+        <FileList
+          files={files}
+          wasTrimmed={wasTrimmed}
+          onRemove={removeFile}
+          onProcessAll={processAll}
+          onCancel={reset}
+        />
+      )}
+
+      {/* Batch: Processing progress */}
+      {batchMode === "processing" && <BatchProgress files={files} />}
+
+      {/* Batch: Results */}
+      {batchMode === "done" && <BatchResults files={files} onReset={reset} />}
+
+      {/* Single-file: Processing animation */}
+      {batchMode === null && isProcessing && (
         <ProcessingAnimation stage={stage} fileName={fileName} />
       )}
 
-      {/* Error */}
-      {stage === "error" && (
+      {/* Single-file: Error */}
+      {batchMode === null && stage === "error" && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-6">
           <div className="flex items-start gap-3">
             <div className="mt-0.5 text-red-500">
@@ -182,8 +327,8 @@ export function PipelinePage() {
         </div>
       )}
 
-      {/* Results */}
-      {stage === "done" && result && (
+      {/* Single-file: Results */}
+      {batchMode === null && stage === "done" && result && (
         <ResultsView result={result} onReset={reset} />
       )}
     </div>
@@ -223,6 +368,7 @@ function UploadZone({
         ref={fileRef}
         type="file"
         accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac"
+        multiple
         onChange={onFileSelect}
         className="hidden"
       />
@@ -240,20 +386,302 @@ function UploadZone({
         </div>
 
         <h3 className="text-lg font-semibold text-gray-900">
-          {dragOver ? "Отпустите файл" : "Загрузите запись звонка"}
+          {dragOver ? "Отпустите файлы" : "Загрузите записи звонков"}
         </h3>
         <p className="mt-2 text-sm text-gray-500">
-          Перетащите аудио файл или нажмите для выбора
+          Перетащите аудио файлы или нажмите для выбора
         </p>
         <p className="mt-1 text-xs text-gray-400">
-          MP3, WAV, OGG, M4A, FLAC
+          MP3, WAV, OGG, M4A, FLAC &middot; до {MAX_FILES} файлов за раз
         </p>
       </div>
     </div>
   );
 }
 
-/* ─── Processing Animation ───────────────────────────────── */
+/* ─── File List (batch select mode) ─────────────────────── */
+
+function FileList({
+  files,
+  wasTrimmed,
+  onRemove,
+  onProcessAll,
+  onCancel,
+}: {
+  files: FileJob[];
+  wasTrimmed: boolean;
+  onRemove: (id: string) => void;
+  onProcessAll: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-semibold text-gray-900">
+            Выбрано файлов: {files.length}
+          </h3>
+          {wasTrimmed && (
+            <p className="text-xs text-amber-600 mt-1">
+              Максимум {MAX_FILES} файлов. Лишние были отброшены.
+            </p>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={onCancel}
+            className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            Отмена
+          </button>
+          <button
+            onClick={onProcessAll}
+            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+          >
+            Обработать все
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2 max-h-96 overflow-y-auto">
+        {files.map((f) => (
+          <div
+            key={f.id}
+            className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-3"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <svg className="h-5 w-5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
+              </svg>
+              <span className="text-sm font-medium text-gray-700 truncate">{f.file.name}</span>
+              <span className="text-xs text-gray-400 flex-shrink-0">{formatFileSize(f.file.size)}</span>
+            </div>
+            <button
+              onClick={() => onRemove(f.id)}
+              className="ml-3 flex-shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Batch Progress ─────────────────────────────────────── */
+
+function BatchProgress({ files }: { files: FileJob[] }) {
+  const completed = files.filter((f) => f.status === "done" || f.status === "error").length;
+  const progressPct = files.length > 0 ? (completed / files.length) * 100 : 0;
+
+  return (
+    <div className="space-y-4">
+      {/* Overall progress */}
+      <div className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-gray-900">Обработка файлов</h3>
+          <span className="text-sm text-gray-500">{completed} / {files.length}</span>
+        </div>
+        <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-blue-500 transition-all duration-500"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Per-file cards */}
+      <div className="space-y-2">
+        {files.map((f) => (
+          <BatchFileCard key={f.id} job={f} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BatchFileCard({ job }: { job: FileJob }) {
+  const statusConfig: Record<FileStatus, { color: string; bg: string; icon: "clock" | "spinner" | "check" | "x"; label: string }> = {
+    pending:       { color: "text-gray-400",  bg: "bg-gray-50",  icon: "clock",   label: "В очереди" },
+    uploading:     { color: "text-blue-600",  bg: "bg-blue-50",  icon: "spinner", label: "Загрузка" },
+    transcribing:  { color: "text-blue-600",  bg: "bg-blue-50",  icon: "spinner", label: "Транскрипция" },
+    segmenting:    { color: "text-blue-600",  bg: "bg-blue-50",  icon: "spinner", label: "Сегментация" },
+    classifying:   { color: "text-blue-600",  bg: "bg-blue-50",  icon: "spinner", label: "Классификация" },
+    done:          { color: "text-green-600", bg: "bg-green-50", icon: "check",   label: "Готово" },
+    error:         { color: "text-red-600",   bg: "bg-red-50",   icon: "x",       label: "Ошибка" },
+  };
+  const cfg = statusConfig[job.status];
+  const isActive = !["pending", "done", "error"].includes(job.status);
+
+  let summary = "";
+  if (job.status === "done" && job.result) {
+    const segs = job.result.segments.length;
+    const created = job.result.segments.filter((s) => s.action === "created").length;
+    const enriched = job.result.segments.filter((s) => s.action === "enriched").length;
+    summary = `${segs} сегм., ${created} создано, ${enriched} обогащено`;
+  }
+
+  return (
+    <div className={`flex items-center gap-3 rounded-xl border border-gray-200/80 px-4 py-3 ${cfg.bg} transition-all duration-300`}>
+      {/* Status icon */}
+      <div className={`flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0 ${cfg.color}`}>
+        {cfg.icon === "clock" && (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+        )}
+        {cfg.icon === "spinner" && (
+          <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+        )}
+        {cfg.icon === "check" && (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+          </svg>
+        )}
+        {cfg.icon === "x" && (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        )}
+      </div>
+
+      {/* File info */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-900 truncate">{job.file.name}</span>
+          {isActive && (
+            <span className={`text-xs font-medium ${cfg.color}`}>{cfg.label}</span>
+          )}
+        </div>
+        {job.status === "done" && summary && (
+          <p className="text-xs text-green-600 mt-0.5">{summary}</p>
+        )}
+        {job.status === "error" && job.error && (
+          <p className="text-xs text-red-600 mt-0.5 truncate">{job.error}</p>
+        )}
+      </div>
+
+      {/* Static badge for terminal states */}
+      {!isActive && (
+        <span className={`flex-shrink-0 text-xs font-semibold ${cfg.color}`}>{cfg.label}</span>
+      )}
+    </div>
+  );
+}
+
+/* ─── Batch Results ──────────────────────────────────────── */
+
+function BatchResults({ files, onReset }: { files: FileJob[]; onReset: () => void }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const doneFiles = files.filter((f) => f.status === "done" && f.result);
+  const errorFiles = files.filter((f) => f.status === "error");
+
+  const totalSegments = doneFiles.reduce((sum, f) => sum + (f.result?.segments.length ?? 0), 0);
+  const totalCreated = doneFiles.reduce(
+    (sum, f) => sum + (f.result?.segments.filter((s) => s.action === "created").length ?? 0),
+    0,
+  );
+  const totalEnriched = doneFiles.reduce(
+    (sum, f) => sum + (f.result?.segments.filter((s) => s.action === "enriched").length ?? 0),
+    0,
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Aggregate stats */}
+      <div className={`grid grid-cols-2 gap-4 ${errorFiles.length > 0 ? "sm:grid-cols-5" : "sm:grid-cols-4"}`}>
+        <StatCard label="Файлов" value={String(files.length)} color="blue" />
+        <StatCard label="Сегментов" value={String(totalSegments)} color="purple" />
+        <StatCard label="Создано" value={String(totalCreated)} color="amber" />
+        <StatCard label="Обогащено" value={String(totalEnriched)} color="green" />
+        {errorFiles.length > 0 && (
+          <StatCard label="Ошибок" value={String(errorFiles.length)} color="red" />
+        )}
+      </div>
+
+      {/* Expandable per-file results */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+          Результаты по файлам
+        </h3>
+        {files.map((f) => (
+          <div key={f.id} className="rounded-xl border border-gray-200/80 bg-white shadow-sm overflow-hidden">
+            <button
+              onClick={() => setExpandedId(expandedId === f.id ? null : f.id)}
+              className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                {f.status === "done" ? (
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-green-50 text-green-600 flex-shrink-0">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  </div>
+                ) : (
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-600 flex-shrink-0">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                )}
+                <span className="text-sm font-medium text-gray-900 truncate">{f.file.name}</span>
+                {f.status === "done" && f.result && (
+                  <span className="text-xs text-gray-400 flex-shrink-0">
+                    {f.result.segments.length} сегм.
+                  </span>
+                )}
+                {f.status === "error" && (
+                  <span className="text-xs text-red-500 truncate">{f.error}</span>
+                )}
+              </div>
+              <svg
+                className={`h-5 w-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ml-2 ${
+                  expandedId === f.id ? "rotate-180" : ""
+                }`}
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+            {expandedId === f.id && f.status === "done" && f.result && (
+              <div className="border-t border-gray-100 px-5 py-4">
+                <ResultsView result={f.result} onReset={() => {}} hideActions />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3">
+        <button
+          onClick={onReset}
+          className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+        >
+          Загрузить ещё
+        </button>
+        <Link
+          to="/articles"
+          className="rounded-lg border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+        >
+          К базе знаний
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Processing Animation (single-file) ────────────────── */
 
 function ProcessingAnimation({ stage, fileName }: { stage: Stage; fileName: string | null }) {
   const currentIdx = STAGES.findIndex((s) => s.key === stage);
@@ -387,7 +815,15 @@ function WaveBar({ index, stage }: { index: number; stage: Stage }) {
 
 /* ─── Results View ───────────────────────────────────────── */
 
-function ResultsView({ result, onReset }: { result: PipelineResult; onReset: () => void }) {
+function ResultsView({
+  result,
+  onReset,
+  hideActions = false,
+}: {
+  result: PipelineResult;
+  onReset: () => void;
+  hideActions?: boolean;
+}) {
   const [showTranscript, setShowTranscript] = useState(false);
   const enriched = result.segments.filter((s) => s.action === "enriched").length;
   const created = result.segments.filter((s) => s.action === "created").length;
@@ -446,14 +882,16 @@ function ResultsView({ result, onReset }: { result: PipelineResult; onReset: () 
       )}
 
       {/* Actions */}
-      <div className="flex gap-3">
-        <button onClick={onReset} className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700">
-          Загрузить ещё
-        </button>
-        <Link to="/articles" className="rounded-lg border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50">
-          К базе знаний
-        </Link>
-      </div>
+      {!hideActions && (
+        <div className="flex gap-3">
+          <button onClick={onReset} className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700">
+            Загрузить ещё
+          </button>
+          <Link to="/articles" className="rounded-lg border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50">
+            К базе знаний
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
@@ -466,6 +904,7 @@ function StatCard({ label, value, color }: { label: string; value: string; color
     purple: "bg-purple-50 text-purple-700",
     green:  "bg-green-50 text-green-700",
     amber:  "bg-amber-50 text-amber-700",
+    red:    "bg-red-50 text-red-700",
   };
   return (
     <div className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm">

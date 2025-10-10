@@ -1,69 +1,115 @@
 package pipeline
 
-const segmentationPrompt = `You are an expert at analyzing veterinary clinic phone call transcripts in Russian.
+const segmentationPrompt = `Ты — аналитик звонков ветеринарной клиники.
 
-Given a transcript of a phone call to a veterinary clinic, split it into logical topic segments.
-Each segment should cover ONE distinct topic discussed during the call.
+Тебе дан транскрипт телефонного звонка в ветклинику. Определи, сколько РАЗНЫХ тем обсуждается в звонке, и разбей транскрипт на сегменты.
 
-For each segment, provide:
-- topic: a short descriptive title in Russian
-- text: the exact portion of the transcript covering this topic
-- urgency: one of "emergency", "urgent", "routine", "informational"
-- category: suggested category (e.g. "preventive", "emergency", "urological", "admin", "surgical", "dermatological", "dental", "diagnostic")
-- suggested_slug: a URL-friendly slug in English (e.g. "cat_sterilization", "dog_vaccination")
-- suggested_name: full article name in Russian
+ОПРЕДЕЛЕНИЕ ТЕМЫ:
+Тема — это отдельная медицинская проблема или услуга:
+- "стерилизация кошки" — одна тема
+- "кровь в моче" — другая тема
+- "стерилизация + нужно сначала сделать УЗИ для подготовки" — ДВЕ темы (услуга + диагностика)
 
-IMPORTANT: Do NOT create segments for greetings or goodbyes. Focus on substantive topics.
+НЕ считай разными темами:
+- Уточняющие вопросы в рамках одной темы
+- Обсуждение цены за конкретную услугу (это часть темы услуги)
+- Организационные моменты: запись, время, подготовка к процедуре
 
-Return ONLY a valid JSON array, no markdown code fences, no extra text.
-Example:
+ИГНОРИРУЙ (не создавай сегменты для):
+- Приветствия и прощания
+- Чисто организационные фрагменты (только запись на приём без медицинской темы)
+
+КАТЕГОРИИ (строго одна из списка):
+urological, preventive, emergency, admin, surgical, dermatological, dental, diagnostic, gi, musculoskeletal, respiratory, reproductive, ophthalmology, oncology, cardiology, neurology, general
+
+ФОРМАТ ОТВЕТА — строго JSON-массив, без markdown-обёрток:
 [
   {
-    "topic": "Стерилизация кошки",
-    "text": "Здравствуйте, хотели бы записать кошку на стерилизацию...",
-    "urgency": "routine",
-    "category": "preventive",
-    "suggested_slug": "cat_sterilization",
-    "suggested_name": "Стерилизация кошки"
+    "topic": "краткое название темы (2-5 слов, русский)",
+    "text": "ТОЧНАЯ КОПИЯ фрагмента транскрипта, относящегося к этой теме",
+    "urgency": "emergency | urgent | routine | informational",
+    "category": "категория из списка выше",
+    "suggested_slug": "english_snake_case_slug",
+    "suggested_name": "Полное название статьи на русском"
   }
 ]
 
-Transcript:
+ВАЖНО:
+- В поле "text" копируй ТОЛЬКО тот фрагмент транскрипта, который относится к данной теме — ДОСЛОВНО, не пересказывай
+- НЕ включай в text приветствия, прощания, организационные фразы про запись/время/адрес
+- Если в звонке одна тема — включи весь содержательный фрагмент (без приветствий/прощаний)
+- suggested_slug — английский, snake_case, КОНКРЕТНО отражает тему (например: cat_sterilization, blood_in_urine, dog_castration)
+- suggested_slug должен быть СПЕЦИФИЧНЫМ: не "injections" а "cat_vaccination", не "diagnostics" а "preop_blood_tests"
+- suggested_name — конкретное название на русском: не "Уколы" а "Вакцинация кошки", не "Диагностика" а "Предоперационные анализы крови"
+
+Транскрипт:
 %s`
 
-const enrichArticlePrompt = `You are a veterinary knowledge base editor.
+const enrichArticlePrompt = `Ты — редактор базы знаний ветеринарной клиники.
 
-You have an existing knowledge base article and a new segment from a phone call transcript.
-Update the article's content JSON by incorporating new information from the segment.
+Тебе даны:
+1. ТЕКУЩЕЕ СОДЕРЖИМОЕ статьи (JSON)
+2. НОВЫЙ СЕГМЕНТ из телефонного звонка
 
-Rules:
-- Add new trigger_phrases if the segment reveals phrases not already present
-- Add new conversation_flow steps if the segment shows a workflow not covered
-- Add new clarifying_questions, exceptions, services_and_prices, red_flags, faq entries as appropriate
-- Add an evidence entry with a key quote from the segment
-- Do NOT remove existing information
-- Do NOT duplicate existing entries
-- Keep the same JSON structure
+ЗАДАЧА: Обновить JSON статьи, добавив ТОЛЬКО ту информацию из сегмента, которая НАПРЯМУЮ относится к теме статьи.
 
-Current article name: %s
-Current content:
+═══ ПЕРВЫЙ ШАГ — ПРОВЕРКА РЕЛЕВАНТНОСТИ ═══
+Прочитай название статьи и тему сегмента. Если сегмент НЕ относится к теме статьи — верни содержимое БЕЗ ИЗМЕНЕНИЙ (только добавь evidence с пометкой что сегмент не релевантен).
+
+Примеры:
+- Статья "Стерилизация кошки", сегмент про вакцинацию → НЕ РЕЛЕВАНТНО, вернуть как есть
+- Статья "Стерилизация кошки", сегмент про стерилизацию другого животного → РЕЛЕВАНТНО
+- Статья "Анализы крови", сегмент про запись к хирургу → НЕ РЕЛЕВАНТНО
+
+═══ ПРАВИЛА ПО ПОЛЯМ (только если сегмент релевантен!) ═══
+
+trigger_phrases:
+- ТОЛЬКО короткие фразы клиента (3-10 слов), которыми он НАЧИНАЕТ разговор о теме
+- Примеры хороших: "хотим стерилизовать кошку", "сколько стоит кастрация"
+- НЕ добавляй: длинные реплики, ответы оператора, фразы не по теме статьи
+- НЕ ПРИДУМЫВАЙ — только дословно из транскрипта
+
+conversation_flow:
+- Добавляй ТОЛЬКО если в звонке виден НОВЫЙ паттерн диалога по теме статьи
+- НЕ добавляй организационные шаги (запись, время, адрес)
+
+exceptions:
+- ТОЛЬКО конкретные особые случаи по теме статьи с condition + action
+
+services_and_prices:
+- ТОЛЬКО если в звонке названа конкретная цена за услугу ПО ТЕМЕ статьи
+
+evidence:
+- ОБЯЗАТЕЛЬНО добавь запись: {"call_id": "...", "quote": "цитата ПО ТЕМЕ статьи", "source": "call_transcript"}
+- Цитата должна быть про тему статьи, а не про что-то другое из звонка
+
+═══ КРИТИЧЕСКИЕ ПРАВИЛА ═══
+- НЕ УДАЛЯЙ и НЕ ИЗМЕНЯЙ существующие записи
+- НЕ добавляй информацию, которая не относится к теме статьи
+- Организационные данные (адреса, расписание, общие правила клиники) — ПРОПУСКАЙ
+- Информацию о других услугах/темах — ПРОПУСКАЙ
+- Если в сегменте нет ничего нового по теме — верни JSON без изменений (кроме evidence)
+
+Название статьи: %s
+Текущее содержимое:
 %s
 
-New segment from call:
+call_id: %s
+Новый сегмент из звонка:
 %s
 
-Return ONLY the updated content JSON, no markdown code fences, no extra text.`
+Верни ТОЛЬКО обновлённый JSON, без markdown-обёрток и пояснений.`
 
-const createArticlePrompt = `You are a veterinary knowledge base editor.
+const createArticlePrompt = `Ты — редактор базы знаний ветеринарной клиники.
 
-Create a new knowledge base article from a phone call transcript segment.
+Создай новую статью базы знаний на основе сегмента телефонного звонка.
 
-The article content should follow this exact JSON structure:
+JSON-структура статьи (строго соблюдай):
 {
-  "trigger_phrases": ["phrase1", "phrase2"],
+  "trigger_phrases": ["фраза1", "фраза2"],
   "conversation_flow": [
-    {"step": "Step description", "ask": "Question to ask", "why": "Reason"},
-    {"step": "Step description", "say": "What to say"}
+    {"step": "Описание шага", "ask": "Вопрос оператора", "why": "Зачем спрашивать"},
+    {"step": "Описание шага", "say": "Что сказать клиенту"}
   ],
   "clarifying_questions": [
     {"question": "...", "why": "...", "impact": "..."}
@@ -82,16 +128,26 @@ The article content should follow this exact JSON structure:
     {"q": "...", "a": "..."}
   ],
   "evidence": [
-    {"quote": "...", "source": "call_transcript"}
+    {"call_id": "...", "quote": "цитата из транскрипта", "source": "call_transcript"}
   ]
 }
 
-Fill in as much as possible from the segment. Leave arrays empty if no relevant info.
+КАТЕГОРИИ (строго одна из списка):
+urological, preventive, emergency, admin, surgical, dermatological, dental, diagnostic, gi, musculoskeletal, respiratory, reproductive, ophthalmology, oncology, cardiology, neurology, general
 
-Topic: %s
-Category: %s
+ПРАВИЛА:
+- trigger_phrases: ТОЛЬКО реальные фразы клиента из транскрипта, не придумывай
+- conversation_flow: только шаги, которые видны из данного звонка
+- evidence: ОБЯЗАТЕЛЬНО, call_id должен быть заполнен
+- Если для какого-то блока нет данных в звонке — оставь пустой массив []
+- НЕ выдумывай информацию, которой нет в транскрипте
+- Цены указывай только если они явно названы в звонке
 
-Segment text:
+Тема: %s
+Категория: %s
+call_id: %s
+
+Сегмент из звонка:
 %s
 
-Return ONLY the content JSON, no markdown code fences, no extra text.`
+Верни ТОЛЬКО JSON, без markdown-обёрток и пояснений.`

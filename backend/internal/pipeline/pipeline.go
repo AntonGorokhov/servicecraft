@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vetkb/backend/internal/models"
@@ -12,7 +13,7 @@ import (
 )
 
 const (
-	similarityThreshold = 0.55
+	similarityThreshold = 0.65
 	embeddingVersion    = "lucataco/qwen3-embedding-8b:42d968487820032a1535d81ea20df16f442ea308ec5abae6b5d6cf4675eb3e2f"
 )
 
@@ -28,12 +29,13 @@ type Segment struct {
 
 // SegmentResult is the per-segment result returned in the API response.
 type SegmentResult struct {
-	Topic       string  `json:"topic"`
-	Urgency     string  `json:"urgency"`
-	Action      string  `json:"action"`
-	ArticleSlug string  `json:"article_slug"`
-	ArticleName string  `json:"article_name"`
-	Similarity  float64 `json:"similarity,omitempty"`
+	Topic         string   `json:"topic"`
+	Urgency       string   `json:"urgency"`
+	Action        string   `json:"action"`
+	ArticleSlug   string   `json:"article_slug"`
+	ArticleName   string   `json:"article_name"`
+	Similarity    float64  `json:"similarity,omitempty"`
+	EnrichedSlugs []string `json:"enriched_slugs,omitempty"`
 }
 
 // ProcessResult is the full pipeline response.
@@ -48,6 +50,8 @@ type PipelineService struct {
 	replicate      *ReplicateClient
 	qdrant         *QdrantService
 	articleService *services.ArticleService
+	locksMu        sync.Mutex            // protects articleLocks map
+	articleLocks   map[string]*sync.Mutex // per-slug locks for concurrent segment processing
 }
 
 func NewPipelineService(replicateToken string, qdrant *QdrantService, articleService *services.ArticleService) *PipelineService {
@@ -55,11 +59,24 @@ func NewPipelineService(replicateToken string, qdrant *QdrantService, articleSer
 		replicate:      NewReplicateClient(replicateToken),
 		qdrant:         qdrant,
 		articleService: articleService,
+		articleLocks:   make(map[string]*sync.Mutex),
 	}
 }
 
+// getArticleLock returns a per-slug mutex, creating one if needed.
+func (p *PipelineService) getArticleLock(slug string) *sync.Mutex {
+	p.locksMu.Lock()
+	defer p.locksMu.Unlock()
+	if mu, ok := p.articleLocks[slug]; ok {
+		return mu
+	}
+	mu := &sync.Mutex{}
+	p.articleLocks[slug] = mu
+	return mu
+}
+
 // Process runs the full pipeline: transcribe → segment → classify (Qdrant) → enrich/create.
-func (p *PipelineService) Process(audioBase64 string, companyID *uint) (*ProcessResult, error) {
+func (p *PipelineService) Process(audioBase64 string, companyID *uint, callID string) (*ProcessResult, error) {
 	start := time.Now()
 
 	// Stage 1: Transcription
@@ -86,14 +103,20 @@ func (p *PipelineService) Process(audioBase64 string, companyID *uint) (*Process
 		log.Printf("[pipeline] Warning: article indexing error: %v", err)
 	}
 
-	// Stage 3 & 4: Classify and enrich/create for each segment
-	var results []SegmentResult
+	// Stage 3 & 4: Classify and enrich/create for each segment (parallel).
+	// Per-article locks prevent race conditions on the same article while allowing
+	// segments targeting different articles to process concurrently.
+	results := make([]SegmentResult, len(segments))
+	var wg sync.WaitGroup
 	for i, seg := range segments {
-		log.Printf("[pipeline] Processing segment %d/%d: %s", i+1, len(segments), seg.Topic)
-
-		result := p.processSegment(seg, companyID)
-		results = append(results, result)
+		wg.Add(1)
+		go func(idx int, s Segment) {
+			defer wg.Done()
+			log.Printf("[pipeline] Processing segment %d/%d: %s", idx+1, len(segments), s.Topic)
+			results[idx] = p.processSegment(s, companyID, callID)
+		}(i, seg)
 	}
+	wg.Wait()
 
 	duration := time.Since(start)
 	return &ProcessResult{
@@ -239,68 +262,107 @@ func buildArticleEmbeddingText(a models.Article) string {
 }
 
 // processSegment handles classification and enrichment/creation for a single segment.
-func (p *PipelineService) processSegment(seg Segment, companyID *uint) SegmentResult {
+// Phase 1 (no lock): embed segment + search Qdrant (read-only).
+// Phase 2 (per-slug lock): enrich or create, with double-check after acquiring lock.
+func (p *PipelineService) processSegment(seg Segment, companyID *uint, callID string) SegmentResult {
 	result := SegmentResult{
 		Topic:   seg.Topic,
 		Urgency: seg.Urgency,
 	}
 
-	// Stage 3: Embed segment and search Qdrant
-	segVec, err := p.getEmbedding(seg.Topic + ". " + seg.Text)
+	// Phase 1: Embed segment topic for classification (not full text — full text
+	// contains multi-topic noise that causes false matches)
+	embText := seg.Topic
+	if seg.SuggestedName != "" && seg.SuggestedName != seg.Topic {
+		embText = seg.Topic + ". " + seg.SuggestedName
+	}
+	segVec, err := p.getEmbedding(embText)
 	if err != nil {
 		log.Printf("[pipeline] Warning: failed to embed segment '%s': %v", seg.Topic, err)
-		return p.createNewArticle(seg, companyID, segVec, result)
+		// Lock on suggested slug for creation
+		mu := p.getArticleLock(seg.SuggestedSlug)
+		mu.Lock()
+		defer mu.Unlock()
+		return p.createNewArticle(seg, companyID, callID, segVec, result)
 	}
 
 	matches, err := p.qdrant.SearchSimilar(segVec, companyID, 3, similarityThreshold)
 	if err != nil {
 		log.Printf("[pipeline] Warning: Qdrant search failed: %v", err)
-		return p.createNewArticle(seg, companyID, segVec, result)
+		mu := p.getArticleLock(seg.SuggestedSlug)
+		mu.Lock()
+		defer mu.Unlock()
+		return p.createNewArticle(seg, companyID, callID, segVec, result)
 	}
 
+	// Phase 2: Enrich best match only
 	if len(matches) > 0 {
 		best := matches[0]
-		log.Printf("[pipeline] Matched '%s' → '%s' (score=%.3f)", seg.Topic, best.Slug, best.Score)
+		log.Printf("[pipeline] Matched '%s' → '%s' (score=%.3f, %d candidates)", seg.Topic, best.Slug, best.Score, len(matches))
 
-		// Stage 4a: Enrich existing article
+		mu := p.getArticleLock(best.Slug)
+		mu.Lock()
+		defer mu.Unlock()
+
 		result.Action = "enriched"
 		result.ArticleSlug = best.Slug
 		result.ArticleName = best.Name
 		result.Similarity = best.Score
 
-		if err := p.enrichArticle(best.Slug, seg, companyID); err != nil {
+		if err := p.enrichArticle(best.Slug, seg, companyID, callID); err != nil {
 			log.Printf("[pipeline] Warning: enrichment failed for %s: %v", best.Slug, err)
 			result.Action = "enrichment_failed"
 		}
 		return result
 	}
 
-	// Stage 4b: No match — but check slug collision first
+	// Stage 4b: No match — lock on suggested slug, then double-check
+	mu := p.getArticleLock(seg.SuggestedSlug)
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Double-check: another goroutine may have created the article while we waited
+	// Re-query Qdrant to see if a match appeared
+	matches2, err := p.qdrant.SearchSimilar(segVec, companyID, 3, similarityThreshold)
+	if err == nil && len(matches2) > 0 {
+		best := matches2[0]
+		log.Printf("[pipeline] Double-check matched '%s' → '%s' (score=%.3f)", seg.Topic, best.Slug, best.Score)
+		result.Action = "enriched"
+		result.ArticleSlug = best.Slug
+		result.ArticleName = best.Name
+		result.Similarity = best.Score
+		if err := p.enrichArticle(best.Slug, seg, companyID, callID); err != nil {
+			log.Printf("[pipeline] Warning: enrichment failed for %s: %v", best.Slug, err)
+			result.Action = "enrichment_failed"
+		}
+		return result
+	}
+
+	// Also check slug collision in DB
 	existing, _ := p.articleService.GetBySlug(companyID, seg.SuggestedSlug)
 	if existing != nil {
 		log.Printf("[pipeline] Slug '%s' exists, enriching instead of creating", seg.SuggestedSlug)
 		result.Action = "enriched"
 		result.ArticleSlug = existing.Slug
 		result.ArticleName = existing.Name
-
-		if err := p.enrichArticle(existing.Slug, seg, companyID); err != nil {
+		if err := p.enrichArticle(existing.Slug, seg, companyID, callID); err != nil {
 			log.Printf("[pipeline] Warning: enrichment failed for %s: %v", existing.Slug, err)
 			result.Action = "enrichment_failed"
 		}
 		return result
 	}
 
-	return p.createNewArticle(seg, companyID, segVec, result)
+	return p.createNewArticle(seg, companyID, callID, segVec, result)
 }
 
 // enrichArticle updates an existing article with information from a segment.
-func (p *PipelineService) enrichArticle(slug string, seg Segment, companyID *uint) error {
+func (p *PipelineService) enrichArticle(slug string, seg Segment, companyID *uint, callID string) error {
 	article, err := p.articleService.GetBySlug(companyID, slug)
 	if err != nil || article == nil {
 		return fmt.Errorf("get article %s: %w", slug, err)
 	}
 
-	prompt := fmt.Sprintf(enrichArticlePrompt, article.Name, string(article.Content), seg.Text)
+	prompt := fmt.Sprintf(enrichArticlePrompt, article.Name, string(article.Content), callID, seg.Text)
 	output, err := p.replicate.RunModel("openai/gpt-oss-20b", map[string]interface{}{
 		"prompt":     prompt,
 		"max_tokens": 16384,
@@ -312,13 +374,18 @@ func (p *PipelineService) enrichArticle(slug string, seg Segment, companyID *uin
 	text := extractLLMText(output)
 	text = stripCodeFences(text)
 
-	var contentCheck json.RawMessage
-	if err := json.Unmarshal([]byte(text), &contentCheck); err != nil {
+	var enrichedContent json.RawMessage
+	if err := json.Unmarshal([]byte(text), &enrichedContent); err != nil {
 		return fmt.Errorf("invalid enriched content JSON: %w", err)
 	}
 
+	// Validate enrichment: no required keys missing, no arrays shrunk
+	if err := validateEnrichment(article.Content, enrichedContent); err != nil {
+		return fmt.Errorf("enrichment validation failed: %w", err)
+	}
+
 	updates := map[string]interface{}{
-		"content":    contentCheck,
+		"content":    enrichedContent,
 		"call_count": article.CallCount + 1,
 	}
 	if _, err := p.articleService.Update(companyID, slug, updates); err != nil {
@@ -329,12 +396,12 @@ func (p *PipelineService) enrichArticle(slug string, seg Segment, companyID *uin
 }
 
 // createNewArticle creates a new article and indexes it in Qdrant.
-func (p *PipelineService) createNewArticle(seg Segment, companyID *uint, segVec []float32, result SegmentResult) SegmentResult {
+func (p *PipelineService) createNewArticle(seg Segment, companyID *uint, callID string, segVec []float32, result SegmentResult) SegmentResult {
 	result.Action = "created"
 	result.ArticleSlug = seg.SuggestedSlug
 	result.ArticleName = seg.SuggestedName
 
-	prompt := fmt.Sprintf(createArticlePrompt, seg.Topic, seg.Category, seg.Text)
+	prompt := fmt.Sprintf(createArticlePrompt, seg.Topic, seg.Category, callID, seg.Text)
 	output, err := p.replicate.RunModel("openai/gpt-oss-20b", map[string]interface{}{
 		"prompt":     prompt,
 		"max_tokens": 16384,
@@ -350,8 +417,9 @@ func (p *PipelineService) createNewArticle(seg Segment, companyID *uint, segVec 
 
 	var content json.RawMessage
 	if err := json.Unmarshal([]byte(text), &content); err != nil {
-		log.Printf("[pipeline] Warning: invalid created content JSON for '%s': %v", seg.Topic, err)
-		content = json.RawMessage(`{"trigger_phrases":[],"conversation_flow":[],"clarifying_questions":[],"exceptions":[],"services_and_prices":[],"red_flags":[],"never_say":[],"faq":[],"evidence":[]}`)
+		log.Printf("[pipeline] Warning: invalid created content JSON for '%s': %v (raw: %.300s)", seg.Topic, err, text)
+		result.Action = "creation_failed"
+		return result
 	}
 
 	now := time.Now().Format("2 Jan")
@@ -381,6 +449,50 @@ func (p *PipelineService) createNewArticle(seg Segment, companyID *uint, segVec 
 	}
 
 	return result
+}
+
+// validateEnrichment checks that the enriched content preserves all required keys
+// and no array field has shrunk compared to the original.
+func validateEnrichment(original, enriched json.RawMessage) error {
+	var origMap, enrichedMap map[string]json.RawMessage
+	if err := json.Unmarshal(original, &origMap); err != nil {
+		// If original isn't a valid object, skip validation
+		return nil
+	}
+	if err := json.Unmarshal(enriched, &enrichedMap); err != nil {
+		return fmt.Errorf("enriched content is not a JSON object")
+	}
+
+	// Check all required keys present
+	requiredKeys := []string{"trigger_phrases", "conversation_flow", "clarifying_questions",
+		"exceptions", "services_and_prices", "red_flags", "never_say", "faq", "evidence"}
+	for _, key := range requiredKeys {
+		if _, exists := origMap[key]; exists {
+			if _, exists2 := enrichedMap[key]; !exists2 {
+				return fmt.Errorf("required key %q missing in enriched content", key)
+			}
+		}
+	}
+
+	// Check no array field shrunk
+	for key, origRaw := range origMap {
+		enrichedRaw, exists := enrichedMap[key]
+		if !exists {
+			continue
+		}
+		var origArr, enrichedArr []json.RawMessage
+		if json.Unmarshal(origRaw, &origArr) != nil {
+			continue // not an array, skip
+		}
+		if json.Unmarshal(enrichedRaw, &enrichedArr) != nil {
+			continue // enriched value is not an array, skip
+		}
+		if len(enrichedArr) < len(origArr) {
+			return fmt.Errorf("array %q shrunk from %d to %d elements", key, len(origArr), len(enrichedArr))
+		}
+	}
+
+	return nil
 }
 
 // extractLLMText extracts text from LLM output (handles string arrays from gpt-oss-20b).

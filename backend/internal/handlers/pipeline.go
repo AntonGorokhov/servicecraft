@@ -4,7 +4,9 @@ import (
 	"encoding/base64"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/vetkb/backend/internal/pipeline"
@@ -29,12 +31,15 @@ func (h *PipelineHandler) Process(c *gin.Context) {
 	}
 
 	// Read audio file from multipart form
-	file, _, err := c.Request.FormFile("audio")
+	file, header, err := c.Request.FormFile("audio")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Audio file required (field: audio)"})
 		return
 	}
 	defer file.Close()
+
+	// Derive callID from filename (strip extension)
+	callID := strings.TrimSuffix(header.Filename, filepath.Ext(header.Filename))
 
 	audioBytes, err := io.ReadAll(file)
 	if err != nil {
@@ -74,7 +79,7 @@ func (h *PipelineHandler) Process(c *gin.Context) {
 	audioBase64 := base64.StdEncoding.EncodeToString(audioBytes)
 
 	// Run pipeline
-	result, err := h.pipelineService.Process(audioBase64, companyID)
+	result, err := h.pipelineService.Process(audioBase64, companyID, callID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
