@@ -19,7 +19,7 @@ func main() {
 	db := database.Connect(cfg)
 
 	// AutoMigrate
-	if err := db.AutoMigrate(&models.Company{}, &models.User{}, &models.Article{}); err != nil {
+	if err := db.AutoMigrate(&models.Company{}, &models.User{}, &models.Article{}, &models.Comment{}); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}
 
@@ -31,6 +31,7 @@ func main() {
 	authService := services.NewAuthService(db, cfg.JWTSecret)
 	companyService := services.NewCompanyService(db)
 	articleService := services.NewArticleService(db)
+	commentService := services.NewCommentService(db)
 
 	// Qdrant
 	qdrantPort, _ := strconv.Atoi(cfg.QdrantPort)
@@ -48,6 +49,7 @@ func main() {
 	profileHandler := handlers.NewProfileHandler(authService)
 	companyHandler := handlers.NewCompanyHandler(companyService)
 	articleHandler := handlers.NewArticleHandler(articleService)
+	commentHandler := handlers.NewCommentHandler(commentService, articleService)
 	pipelineHandler := handlers.NewPipelineHandler(pipelineService)
 
 	r := gin.Default()
@@ -77,6 +79,11 @@ func main() {
 	protected.POST("/articles", articleHandler.Create)
 	protected.PUT("/articles/:slug", articleHandler.Update)
 	protected.DELETE("/articles/:slug", articleHandler.Delete)
+
+	// Comment routes (authenticated)
+	protected.GET("/articles/:slug/comments", commentHandler.List)
+	protected.POST("/articles/:slug/comments", commentHandler.Create)
+	protected.DELETE("/articles/:slug/comments/:id", commentHandler.Delete)
 
 	// Pipeline routes (admin or superadmin)
 	protected.POST("/pipeline/process", pipelineHandler.Process)

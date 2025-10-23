@@ -72,3 +72,20 @@ export interface ArticleContent {
 export interface ArticleDetail extends Article {
   content: ArticleContent;
 }
+
+export interface Comment {
+  id: number;
+  article_id: number;
+  user_id: number;
+  company_id: number | null;
+  quoted_text: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+  };
+}

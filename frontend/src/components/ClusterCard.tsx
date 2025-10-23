@@ -34,17 +34,17 @@ export function ClusterCard({ cluster }: Props) {
           </svg>
         </div>
 
-        <h3 className="mb-2 text-[15px] font-semibold text-gray-900 leading-snug">
+        <h3 className="mb-2 text-base font-semibold text-gray-900 leading-snug">
           {cluster.name}
         </h3>
 
-        <div className="mb-3 flex items-center gap-1.5 text-sm text-gray-400">
+        <div className="mb-3 flex items-center gap-1.5 text-[15px] text-gray-400">
           <span>{cluster.call_count} звонков</span>
           <span>·</span>
           <span>{cluster.last_updated}</span>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-gray-400">
+        <div className="flex items-center gap-3 text-sm text-gray-400">
           <span className="rounded bg-gray-50 px-2 py-0.5">
             {cluster.steps} шагов
           </span>

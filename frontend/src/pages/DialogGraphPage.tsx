@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import client from "../api/client";
 import type { Article, ArticleDetail, ArticleContent } from "../constants/mockData";
+import { CATEGORY_COLORS, CATEGORY_LABELS } from "../constants/categories";
 
 /* ── Types ───────────────────────────────────────────────── */
 
@@ -23,15 +24,23 @@ function buildGraph(content: ArticleContent): { nodes: GraphNode[]; edges: Graph
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
 
-  const flow = content.conversation_flow ?? [];
+  const rawFlow = content.conversation_flow ?? [];
   const exceptions = content.exceptions ?? [];
+
+  // Normalize flow entries — LLM sometimes returns strings instead of objects
+  const flow = rawFlow.map((entry) => {
+    if (typeof entry === "string") {
+      return { step: entry } as { step: string; ask?: string; say?: string; why?: string; action?: string };
+    }
+    return entry;
+  });
 
   // Build step nodes
   flow.forEach((step, i) => {
     const id = `s${i + 1}`;
     nodes.push({
       id,
-      label: step.step,
+      label: step.step || `Шаг ${i + 1}`,
       type: step.action ? "action" : "step",
       sublabel: step.action
         ? step.action
@@ -73,21 +82,21 @@ function buildGraph(content: ArticleContent): { nodes: GraphNode[]; edges: Graph
       const excId = `e${j + 1}`;
       nodes.push({
         id: excId,
-        label: exc.condition,
+        label: exc.condition || "Условие",
         type: "exception",
         sublabel: exc.price_impact,
       });
       edges.push({ from: branchId, to: excId });
       edges.push({ from: excId, to: "s3" });
     });
-  } else if (exceptions.length > 0) {
+  } else if (exceptions.length > 0 && flow.length > 0) {
     // If few steps but have exceptions, show them branching from the last step
     const lastStep = `s${flow.length}`;
     exceptions.forEach((exc, j) => {
       const excId = `e${j + 1}`;
       nodes.push({
         id: excId,
-        label: exc.condition,
+        label: exc.condition || "Условие",
         type: "exception",
         sublabel: exc.price_impact,
       });
@@ -100,9 +109,9 @@ function buildGraph(content: ArticleContent): { nodes: GraphNode[]; edges: Graph
 
 /* ── Layout ──────────────────────────────────────────────── */
 
-const NODE_W = 220;
-const NODE_H = 56;
-const GAP_Y = 64;
+const NODE_W = 260;
+const NODE_H = 64;
+const GAP_Y = 72;
 const EXC_GAP_X = 140;
 const SVG_PAD = 32;
 
@@ -190,6 +199,9 @@ export function DialogGraphPage() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const selectorRef = useRef<HTMLDivElement>(null);
 
   // Load articles list
   useEffect(() => {
@@ -216,6 +228,34 @@ export function DialogGraphPage() {
       .catch(() => setDetail(null))
       .finally(() => setDetailLoading(false));
   }, [selectedSlug]);
+
+  // Close selector on click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (selectorRef.current && !selectorRef.current.contains(e.target as Node)) {
+        setSelectorOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Group articles by category, filtered by search
+  const groupedArticles = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    const filtered = articles.filter((a) =>
+      a.name.toLowerCase().includes(q)
+    );
+    const groups: Record<string, Article[]> = {};
+    filtered.forEach((a) => {
+      const cat = a.category || "general";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(a);
+    });
+    return groups;
+  }, [articles, searchQuery]);
+
+  const selectedArticle = articles.find((a) => a.slug === selectedSlug);
 
   // Build graph
   const { nodes, edges } = useMemo(() => {
@@ -273,20 +313,104 @@ export function DialogGraphPage() {
       </div>
 
       {/* Article selector */}
-      <div className="mb-6 flex flex-wrap gap-1.5">
-        {articles.map((a) => (
+      <div className="mb-6" ref={selectorRef}>
+        <div className="relative max-w-md">
           <button
-            key={a.slug}
-            onClick={() => setSelectedSlug(a.slug)}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-all duration-150 ${
-              selectedSlug === a.slug
-                ? "bg-gray-900 text-white shadow-sm"
-                : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 hover:text-gray-700"
-            }`}
+            onClick={() => setSelectorOpen(!selectorOpen)}
+            className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:border-gray-300"
           >
-            {a.name}
+            {selectedArticle ? (
+              <>
+                <span
+                  className="h-3 w-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: (CATEGORY_COLORS[selectedArticle.category] ?? CATEGORY_COLORS.general).dot }}
+                />
+                <span className="flex-1 truncate text-sm font-medium text-gray-900">
+                  {selectedArticle.name}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {selectedArticle.call_count} звонков
+                </span>
+              </>
+            ) : (
+              <span className="flex-1 text-sm text-gray-400">Выберите статью...</span>
+            )}
+            <svg
+              className={`h-4 w-4 text-gray-400 transition-transform ${selectorOpen ? "rotate-180" : ""}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
           </button>
-        ))}
+
+          {selectorOpen && (
+            <div className="absolute z-20 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg">
+              <div className="border-b px-3 py-2">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Поиск статьи..."
+                  className="w-full border-none bg-transparent text-sm text-gray-900 placeholder-gray-400 outline-none"
+                  autoFocus
+                />
+              </div>
+              <div className="max-h-72 overflow-y-auto py-1">
+                {Object.keys(groupedArticles).length === 0 ? (
+                  <p className="px-4 py-3 text-sm text-gray-400">Ничего не найдено</p>
+                ) : (
+                  Object.entries(groupedArticles).map(([cat, items]) => {
+                    const colors = CATEGORY_COLORS[cat] ?? CATEGORY_COLORS.general;
+                    const label = CATEGORY_LABELS[cat] ?? cat;
+                    return (
+                      <div key={cat}>
+                        <div className="flex items-center gap-2 px-4 py-1.5">
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={{ backgroundColor: colors.dot }}
+                          />
+                          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                            {label}
+                          </span>
+                        </div>
+                        {items.map((a) => (
+                          <button
+                            key={a.slug}
+                            onClick={() => {
+                              setSelectedSlug(a.slug);
+                              setSelectorOpen(false);
+                              setSearchQuery("");
+                            }}
+                            className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors hover:bg-gray-50 ${
+                              selectedSlug === a.slug ? "bg-indigo-50 text-indigo-700" : "text-gray-700"
+                            }`}
+                          >
+                            <span className="flex-1 truncate">{a.name}</span>
+                            <span className="text-xs text-gray-400">{a.call_count}</span>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Selected article info */}
+        {selectedArticle && (
+          <div className="mt-2 flex items-center gap-2">
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${(CATEGORY_COLORS[selectedArticle.category] ?? CATEGORY_COLORS.general).bg} ${(CATEGORY_COLORS[selectedArticle.category] ?? CATEGORY_COLORS.general).text}`}
+            >
+              {CATEGORY_LABELS[selectedArticle.category] ?? selectedArticle.category}
+            </span>
+            <span className="text-xs text-gray-400">
+              {selectedArticle.call_count} звонков · {selectedArticle.steps} шагов · {selectedArticle.exceptions} искл.
+            </span>
+          </div>
+        )}
       </div>
 
       {detailLoading ? (
@@ -418,20 +542,20 @@ export function DialogGraphPage() {
                     />
                     <text
                       x={p.x}
-                      y={p.y + (node.sublabel ? 22 : 32)}
+                      y={p.y + (node.sublabel ? 25 : 36)}
                       textAnchor="middle"
                       fill={style.text}
-                      className="text-[13px] font-semibold"
+                      className="text-sm font-semibold"
                     >
                       {displayLabel}
                     </text>
                     {node.sublabel && (
                       <text
                         x={p.x}
-                        y={p.y + 40}
+                        y={p.y + 46}
                         textAnchor="middle"
                         fill="#9ca3af"
-                        className="text-[11px]"
+                        className="text-xs"
                       >
                         {node.sublabel.length > maxChars
                           ? node.sublabel.slice(0, maxChars - 1) + "…"
