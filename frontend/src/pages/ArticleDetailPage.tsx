@@ -81,6 +81,17 @@ export function ArticleDetailPage() {
   const [article, setArticle] = useState<ArticleDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [viewMode, setViewMode] = useState<"operator" | "agent">(() =>
+    (localStorage.getItem("articleViewMode") as "operator" | "agent") ?? "agent"
+  );
+
+  const toggleViewMode = useCallback(() => {
+    setViewMode((prev) => {
+      const next = prev === "agent" ? "operator" : "agent";
+      localStorage.setItem("articleViewMode", next);
+      return next;
+    });
+  }, []);
 
   // Comments state
   const [comments, setComments] = useState<Comment[]>([]);
@@ -247,6 +258,29 @@ export function ArticleDetailPage() {
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">
               {article.name}
             </h1>
+            {/* View mode toggle */}
+            <div className="mt-4 inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+              <button
+                onClick={viewMode === "agent" ? toggleViewMode : undefined}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                  viewMode === "operator"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Оператор
+              </button>
+              <button
+                onClick={viewMode === "operator" ? toggleViewMode : undefined}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                  viewMode === "agent"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                AI-агент
+              </button>
+            </div>
           </div>
 
           {/* Sections */}
@@ -260,36 +294,67 @@ export function ArticleDetailPage() {
                 defaultOpen
                 accent={colors.dot}
               >
-                <ol className="space-y-4">
-                  {conversationFlow.map((step, i) => (
-                    <li key={i} className="relative pl-8">
-                      <span className="absolute left-0 top-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">
-                        {i + 1}
-                      </span>
-                      <div>
-                        <p className="text-base font-semibold text-gray-900">{step.step}</p>
-                        {step.ask && (
-                          <p className="mt-1 rounded-lg bg-blue-50 px-3 py-2 text-[15px] text-blue-800">
-                            <span className="font-medium">Спросить:</span> {step.ask}
-                          </p>
-                        )}
-                        {step.say && (
-                          <p className="mt-1 rounded-lg bg-emerald-50 px-3 py-2 text-[15px] text-emerald-800">
-                            <span className="font-medium">Сказать:</span> {step.say}
-                          </p>
-                        )}
-                        {step.why && (
-                          <p className="mt-1 text-xs text-gray-400 italic">{step.why}</p>
-                        )}
-                        {step.action && (
-                          <span className="mt-1 inline-block rounded bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">
-                            Действие: {step.action}
-                          </span>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ol>
+                {viewMode === "operator" ? (
+                  /* Operator mode — compact checklist */
+                  <ol className="space-y-2">
+                    {conversationFlow.map((step, i) => (
+                      <li key={i} className="flex items-start gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-gray-50">
+                        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">
+                          {i + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-base text-gray-900">{step.step}</p>
+                          {step.action && (
+                            <span className="mt-0.5 inline-block rounded bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">
+                              {step.action}
+                            </span>
+                          )}
+                        </div>
+                        {/* Small icons showing what this step contains */}
+                        <div className="flex items-center gap-1 flex-shrink-0 pt-0.5">
+                          {step.ask && (
+                            <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-600" title={step.ask}>?</span>
+                          )}
+                          {step.say && (
+                            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600" title={step.say}>!</span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  /* Agent mode — full dialog script */
+                  <ol className="space-y-4">
+                    {conversationFlow.map((step, i) => (
+                      <li key={i} className="relative pl-8">
+                        <span className="absolute left-0 top-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">
+                          {i + 1}
+                        </span>
+                        <div>
+                          <p className="text-base font-semibold text-gray-900">{step.step}</p>
+                          {step.ask && (
+                            <p className="mt-1 rounded-lg bg-blue-50 px-3 py-2 text-[15px] text-blue-800">
+                              <span className="font-medium">Спросить:</span> {step.ask}
+                            </p>
+                          )}
+                          {step.say && (
+                            <p className="mt-1 rounded-lg bg-emerald-50 px-3 py-2 text-[15px] text-emerald-800">
+                              <span className="font-medium">Сказать:</span> {step.say}
+                            </p>
+                          )}
+                          {step.why && (
+                            <p className="mt-1 text-xs text-gray-400 italic">{step.why}</p>
+                          )}
+                          {step.action && (
+                            <span className="mt-1 inline-block rounded bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">
+                              Действие: {step.action}
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
               </Section>
             )}
 
@@ -301,17 +366,28 @@ export function ArticleDetailPage() {
                 count={clarifyingQuestions.length}
                 accent="#3b82f6"
               >
-                <div className="space-y-3">
-                  {clarifyingQuestions.map((q, i) => (
-                    <div key={i} className="rounded-lg border border-gray-100 bg-gray-50 p-4">
-                      <p className="text-base font-semibold text-gray-900">{q.question}</p>
-                      <p className="mt-1 text-xs text-gray-500">{q.why}</p>
-                      <p className="mt-2 rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">
-                        Влияние: {q.impact}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+                {viewMode === "operator" ? (
+                  <ul className="space-y-1.5">
+                    {clarifyingQuestions.map((q, i) => (
+                      <li key={i} className="flex items-start gap-2 rounded-lg px-3 py-2 hover:bg-gray-50">
+                        <span className="mt-1 text-blue-400">?</span>
+                        <span className="text-base text-gray-900">{q.question}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="space-y-3">
+                    {clarifyingQuestions.map((q, i) => (
+                      <div key={i} className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                        <p className="text-base font-semibold text-gray-900">{q.question}</p>
+                        <p className="mt-1 text-xs text-gray-500">{q.why}</p>
+                        <p className="mt-2 rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">
+                          Влияние: {q.impact}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </Section>
             )}
 
