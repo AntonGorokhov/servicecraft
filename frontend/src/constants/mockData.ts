@@ -26,6 +26,7 @@ export interface ServicePrice {
   includes?: string;
   mandatory: boolean;
   condition?: string;
+  price_id?: string;
 }
 
 export interface RedFlag {

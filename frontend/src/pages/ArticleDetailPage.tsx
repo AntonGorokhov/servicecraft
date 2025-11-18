@@ -435,7 +435,16 @@ export function ArticleDetailPage() {
                         <tr key={i} className={s.mandatory ? "bg-emerald-50/40" : ""}>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-900">{s.service}</span>
+                              {s.price_id ? (
+                                <Link
+                                  to={`/price-tree#${s.price_id}`}
+                                  className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                                >
+                                  {s.service}
+                                </Link>
+                              ) : (
+                                <span className="font-medium text-gray-900">{s.service}</span>
+                              )}
                               {s.mandatory && (
                                 <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
                                   ОБЯ3.

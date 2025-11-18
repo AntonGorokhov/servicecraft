@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -50,15 +51,17 @@ type PipelineService struct {
 	replicate      *ReplicateClient
 	qdrant         *QdrantService
 	articleService *services.ArticleService
+	priceService   *services.PriceService
 	locksMu        sync.Mutex            // protects articleLocks map
 	articleLocks   map[string]*sync.Mutex // per-slug locks for concurrent segment processing
 }
 
-func NewPipelineService(replicateToken string, qdrant *QdrantService, articleService *services.ArticleService) *PipelineService {
+func NewPipelineService(replicateToken string, qdrant *QdrantService, articleService *services.ArticleService, priceService *services.PriceService) *PipelineService {
 	return &PipelineService{
 		replicate:      NewReplicateClient(replicateToken),
 		qdrant:         qdrant,
 		articleService: articleService,
+		priceService:   priceService,
 		articleLocks:   make(map[string]*sync.Mutex),
 	}
 }
@@ -302,17 +305,30 @@ func (p *PipelineService) processSegment(seg Segment, companyID *uint, callID st
 
 		mu := p.getArticleLock(best.Slug)
 		mu.Lock()
-		defer mu.Unlock()
+
+		if err := p.enrichArticle(best.Slug, seg, companyID, callID); err != nil {
+			mu.Unlock()
+			if errors.Is(err, errArticleNotFound) {
+				// Stale Qdrant entry — article was deleted from DB. Clean up and create new.
+				log.Printf("[pipeline] Article '%s' not in DB, removing stale Qdrant entry, will create new", best.Slug)
+				if delErr := p.qdrant.DeleteBySlug(best.Slug); delErr != nil {
+					log.Printf("[pipeline] Warning: failed to delete stale Qdrant entry for %s: %v", best.Slug, delErr)
+				}
+				mu2 := p.getArticleLock(seg.SuggestedSlug)
+				mu2.Lock()
+				defer mu2.Unlock()
+				return p.createNewArticle(seg, companyID, callID, segVec, result)
+			}
+			log.Printf("[pipeline] Warning: enrichment failed for %s: %v", best.Slug, err)
+			result.Action = "enrichment_failed"
+			return result
+		}
+		mu.Unlock()
 
 		result.Action = "enriched"
 		result.ArticleSlug = best.Slug
 		result.ArticleName = best.Name
 		result.Similarity = best.Score
-
-		if err := p.enrichArticle(best.Slug, seg, companyID, callID); err != nil {
-			log.Printf("[pipeline] Warning: enrichment failed for %s: %v", best.Slug, err)
-			result.Action = "enrichment_failed"
-		}
 		return result
 	}
 
@@ -327,15 +343,23 @@ func (p *PipelineService) processSegment(seg Segment, companyID *uint, callID st
 	if err == nil && len(matches2) > 0 {
 		best := matches2[0]
 		log.Printf("[pipeline] Double-check matched '%s' → '%s' (score=%.3f)", seg.Topic, best.Slug, best.Score)
-		result.Action = "enriched"
-		result.ArticleSlug = best.Slug
-		result.ArticleName = best.Name
-		result.Similarity = best.Score
 		if err := p.enrichArticle(best.Slug, seg, companyID, callID); err != nil {
-			log.Printf("[pipeline] Warning: enrichment failed for %s: %v", best.Slug, err)
-			result.Action = "enrichment_failed"
+			if errors.Is(err, errArticleNotFound) {
+				log.Printf("[pipeline] Stale Qdrant entry '%s' in double-check, removing", best.Slug)
+				p.qdrant.DeleteBySlug(best.Slug)
+				// Fall through to create
+			} else {
+				log.Printf("[pipeline] Warning: enrichment failed for %s: %v", best.Slug, err)
+				result.Action = "enrichment_failed"
+				return result
+			}
+		} else {
+			result.Action = "enriched"
+			result.ArticleSlug = best.Slug
+			result.ArticleName = best.Name
+			result.Similarity = best.Score
+			return result
 		}
-		return result
 	}
 
 	// Also check slug collision in DB
@@ -355,11 +379,13 @@ func (p *PipelineService) processSegment(seg Segment, companyID *uint, callID st
 	return p.createNewArticle(seg, companyID, callID, segVec, result)
 }
 
+var errArticleNotFound = errors.New("article not found in database")
+
 // enrichArticle updates an existing article with information from a segment.
 func (p *PipelineService) enrichArticle(slug string, seg Segment, companyID *uint, callID string) error {
 	article, err := p.articleService.GetBySlug(companyID, slug)
 	if err != nil || article == nil {
-		return fmt.Errorf("get article %s: %w", slug, err)
+		return fmt.Errorf("get article %s: %w", slug, errArticleNotFound)
 	}
 
 	prompt := fmt.Sprintf(enrichArticlePrompt, article.Name, string(article.Content), callID, seg.Text)
@@ -383,6 +409,9 @@ func (p *PipelineService) enrichArticle(slug string, seg Segment, companyID *uin
 	if err := validateEnrichment(article.Content, enrichedContent); err != nil {
 		return fmt.Errorf("enrichment validation failed: %w", err)
 	}
+
+	// Match services to price tree
+	enrichedContent = p.matchPrices(enrichedContent)
 
 	updates := map[string]interface{}{
 		"content":    enrichedContent,
@@ -421,6 +450,9 @@ func (p *PipelineService) createNewArticle(seg Segment, companyID *uint, callID 
 		result.Action = "creation_failed"
 		return result
 	}
+
+	// Match services to price tree
+	content = p.matchPrices(content)
 
 	now := time.Now().Format("2 Jan")
 	article := &models.Article{
@@ -512,6 +544,61 @@ func extractLLMText(output interface{}) string {
 		raw, _ := json.Marshal(output)
 		return string(raw)
 	}
+}
+
+// matchPrices post-processes article content JSON by matching services_and_prices
+// entries against the price tree. Matched entries get exact names, prices, and price_id.
+func (p *PipelineService) matchPrices(content json.RawMessage) json.RawMessage {
+	if p.priceService == nil {
+		return content
+	}
+
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(content, &obj); err != nil {
+		return content
+	}
+
+	raw, ok := obj["services_and_prices"]
+	if !ok {
+		return content
+	}
+
+	var entries []map[string]interface{}
+	if err := json.Unmarshal(raw, &entries); err != nil {
+		return content
+	}
+
+	changed := false
+	for i, entry := range entries {
+		svc, _ := entry["service"].(string)
+		if svc == "" {
+			continue
+		}
+		match := p.priceService.MatchService(svc)
+		if match == nil {
+			continue
+		}
+		entries[i]["service"] = match.Name
+		entries[i]["price"] = match.Price
+		entries[i]["price_id"] = match.TreePath
+		changed = true
+	}
+
+	if !changed {
+		return content
+	}
+
+	newRaw, err := json.Marshal(entries)
+	if err != nil {
+		return content
+	}
+	obj["services_and_prices"] = newRaw
+
+	result, err := json.Marshal(obj)
+	if err != nil {
+		return content
+	}
+	return result
 }
 
 // stripCodeFences removes markdown code fences from LLM output.

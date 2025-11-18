@@ -9,6 +9,7 @@ import { DialogGraphPage } from "./pages/DialogGraphPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { CompaniesPage } from "./pages/CompaniesPage";
 import { PipelinePage } from "./pages/PipelinePage";
+import { PriceTreePage } from "./pages/PriceTreePage";
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/clusters" element={<ClusterMapPage />} />
           <Route path="/graph" element={<DialogGraphPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/price-tree" element={<PriceTreePage />} />
           <Route path="/pipeline" element={<PipelinePage />} />
           <Route path="/companies" element={<CompaniesPage />} />
         </Route>

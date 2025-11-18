@@ -10,5 +10,6 @@ FROM alpine:3.21
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
 COPY --from=builder /build/vetkb-api .
+COPY --from=builder /build/price-tree.yaml .
 EXPOSE 8080
 CMD ["./vetkb-api"]

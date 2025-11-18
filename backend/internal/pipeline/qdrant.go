@@ -191,6 +191,33 @@ func (s *QdrantService) SearchSimilar(vector []float32, companyID *uint, limit i
 	return results, nil
 }
 
+// DeleteBySlug removes all points with the given slug from Qdrant.
+func (s *QdrantService) DeleteBySlug(slug string) error {
+	body := map[string]interface{}{
+		"filter": map[string]interface{}{
+			"must": []map[string]interface{}{
+				{"key": "slug", "match": map[string]interface{}{"value": slug}},
+			},
+		},
+	}
+	payload, _ := json.Marshal(body)
+
+	req, _ := http.NewRequest("POST", s.baseURL+"/collections/"+collectionName+"/points/delete", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("qdrant delete: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("qdrant delete %d: %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
 // Close is a no-op for REST client (kept for interface compatibility).
 func (s *QdrantService) Close() error {
 	return nil

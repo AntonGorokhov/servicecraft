@@ -27,6 +27,14 @@ func main() {
 	models.SeedAdmin(db, cfg.AdminEmail, cfg.AdminPassword)
 	models.SeedArticles(db)
 
+	// Price tree
+	priceTree, err := services.LoadPriceTree("price-tree.yaml")
+	if err != nil {
+		log.Fatalf("Failed to load price tree: %v", err)
+	}
+	priceService := services.NewPriceService(priceTree)
+	log.Printf("Loaded price tree: %d categories, %d services indexed", len(priceTree), len(priceService.GetTree()))
+
 	// Services
 	authService := services.NewAuthService(db, cfg.JWTSecret)
 	companyService := services.NewCompanyService(db)
@@ -42,7 +50,7 @@ func main() {
 	defer qdrantService.Close()
 
 	// Pipeline
-	pipelineService := pipeline.NewPipelineService(cfg.ReplicateToken, qdrantService, articleService)
+	pipelineService := pipeline.NewPipelineService(cfg.ReplicateToken, qdrantService, articleService, priceService)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
@@ -51,6 +59,7 @@ func main() {
 	articleHandler := handlers.NewArticleHandler(articleService)
 	commentHandler := handlers.NewCommentHandler(commentService, articleService)
 	pipelineHandler := handlers.NewPipelineHandler(pipelineService)
+	priceHandler := handlers.NewPriceHandler(priceService)
 
 	r := gin.Default()
 	r.Use(middleware.CORS())
@@ -72,6 +81,9 @@ func main() {
 	protected.GET("/auth/me", authHandler.Me)
 	protected.PUT("/auth/profile", profileHandler.UpdateProfile)
 	protected.PUT("/auth/password", profileHandler.ChangePassword)
+
+	// Price tree (authenticated)
+	protected.GET("/price-tree", priceHandler.GetTree)
 
 	// Article routes (authenticated)
 	protected.GET("/articles", articleHandler.List)
