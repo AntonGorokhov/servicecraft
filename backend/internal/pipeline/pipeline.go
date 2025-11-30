@@ -411,6 +411,7 @@ func (p *PipelineService) enrichArticle(slug string, seg Segment, companyID *uin
 	}
 
 	// Match services to price tree
+	enrichedContent = fixConversationFlow(enrichedContent)
 	enrichedContent = p.matchPrices(enrichedContent)
 
 	updates := map[string]interface{}{
@@ -452,6 +453,7 @@ func (p *PipelineService) createNewArticle(seg Segment, companyID *uint, callID 
 	}
 
 	// Match services to price tree
+	content = fixConversationFlow(content)
 	content = p.matchPrices(content)
 
 	now := time.Now().Format("2 Jan")
@@ -544,6 +546,49 @@ func extractLLMText(output interface{}) string {
 		raw, _ := json.Marshal(output)
 		return string(raw)
 	}
+}
+
+// fixConversationFlow converts any string entries in conversation_flow to objects.
+// LLM sometimes outputs flat strings instead of {"step": "..."} objects.
+func fixConversationFlow(content json.RawMessage) json.RawMessage {
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(content, &obj); err != nil {
+		return content
+	}
+
+	raw, ok := obj["conversation_flow"]
+	if !ok {
+		return content
+	}
+
+	var items []json.RawMessage
+	if err := json.Unmarshal(raw, &items); err != nil {
+		return content
+	}
+
+	changed := false
+	fixed := make([]interface{}, len(items))
+	for i, item := range items {
+		var s string
+		if json.Unmarshal(item, &s) == nil {
+			// It's a string — convert to object
+			fixed[i] = map[string]string{"step": s}
+			changed = true
+		} else {
+			var m map[string]interface{}
+			json.Unmarshal(item, &m)
+			fixed[i] = m
+		}
+	}
+
+	if !changed {
+		return content
+	}
+
+	newRaw, _ := json.Marshal(fixed)
+	obj["conversation_flow"] = newRaw
+	result, _ := json.Marshal(obj)
+	return result
 }
 
 // matchPrices post-processes article content JSON by matching services_and_prices

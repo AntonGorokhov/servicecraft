@@ -119,17 +119,25 @@ func (ps *PriceService) MatchService(query string) *PriceMatch {
 
 	var bestEntry *flatEntry
 	var bestScore float64
-	const threshold = 0.45
+	var bestMatched int
+	const threshold = 0.55
 
 	for i := range ps.index {
-		score := tokenOverlap(queryTokens, ps.index[i].Tokens)
+		score, matched := tokenOverlap(queryTokens, ps.index[i].Tokens)
 		if score > bestScore {
 			bestScore = score
+			bestMatched = matched
 			bestEntry = &ps.index[i]
 		}
 	}
 
+	// Require score above threshold and reasonable match count
 	if bestEntry == nil || bestScore < threshold {
+		return nil
+	}
+	// For longer queries (3+ tokens), require at least 2 matched tokens
+	// to avoid false matches on a single common word
+	if len(queryTokens) >= 3 && bestMatched < 2 {
 		return nil
 	}
 
@@ -142,32 +150,70 @@ func (ps *PriceService) MatchService(query string) *PriceMatch {
 }
 
 // tokenOverlap computes Jaccard-like overlap between two token sets,
-// weighted by the query coverage (what fraction of query tokens matched).
-func tokenOverlap(query, target []string) float64 {
+// using stem-based matching for Russian words.
+// Returns F1 score and count of matched tokens.
+func tokenOverlap(query, target []string) (float64, int) {
 	if len(query) == 0 || len(target) == 0 {
-		return 0
+		return 0, 0
 	}
 
-	targetSet := make(map[string]bool, len(target))
+	targetStems := make(map[string]bool, len(target))
 	for _, t := range target {
-		targetSet[t] = true
+		targetStems[roughStem(t)] = true
 	}
 
 	matched := 0
 	for _, q := range query {
-		if targetSet[q] {
+		if targetStems[roughStem(q)] {
 			matched++
 		}
 	}
 
 	if matched == 0 {
-		return 0
+		return 0, 0
 	}
 
 	// Harmonic mean of precision (matched/len(target)) and recall (matched/len(query))
 	precision := float64(matched) / float64(len(target))
 	recall := float64(matched) / float64(len(query))
-	return 2 * precision * recall / (precision + recall)
+	return 2 * precision * recall / (precision + recall), matched
+}
+
+// roughStem strips common Russian suffixes to normalize word forms.
+// Not a real stemmer — just enough to match "общий"/"общая", "кошки"/"кошек" etc.
+func roughStem(s string) string {
+	runes := []rune(s)
+	if len(runes) < 4 {
+		return s
+	}
+
+	// Longer suffixes first
+	suffixes := []string{
+		"ого", "его", "ому", "ему", "ыми", "ими", "ами", "ями",
+		"ой", "ей", "ый", "ий", "ая", "яя", "ое", "ее",
+		"ов", "ев", "ах", "ях", "ые", "ие", "ек", "ок",
+		"ом", "ем", "ам", "ям",
+		"ы", "и", "а", "я", "у", "ю", "е", "о",
+	}
+	for _, suf := range suffixes {
+		sufRunes := []rune(suf)
+		remaining := len(runes) - len(sufRunes)
+		// Keep at least 3 chars after stripping
+		if remaining >= 3 && hasSuffix(runes, sufRunes) {
+			return string(runes[:remaining])
+		}
+	}
+	return s
+}
+
+func hasSuffix(runes, suffix []rune) bool {
+	offset := len(runes) - len(suffix)
+	for i, r := range suffix {
+		if runes[offset+i] != r {
+			return false
+		}
+	}
+	return true
 }
 
 var nonAlphaNum = regexp.MustCompile(`[^\p{L}\p{N}]+`)
@@ -175,16 +221,19 @@ var nonAlphaNum = regexp.MustCompile(`[^\p{L}\p{N}]+`)
 // tokenize normalizes and splits a string into tokens.
 func tokenize(s string) []string {
 	s = strings.ToLower(s)
+	// Normalize ё → е
+	s = strings.ReplaceAll(s, "ё", "е")
 	s = nonAlphaNum.ReplaceAllString(s, " ")
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return nil
 	}
 	parts := strings.Fields(s)
-	// Filter out very short tokens (1-2 char) that add noise
+	// Filter out single-char tokens that add noise, but keep 2-3 char
+	// tokens like "узи", "экг", "мрт"
 	var tokens []string
 	for _, p := range parts {
-		if countRunes(p) > 2 {
+		if countRunes(p) >= 2 {
 			tokens = append(tokens, p)
 		}
 	}
