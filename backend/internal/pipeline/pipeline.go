@@ -165,6 +165,11 @@ func (p *PipelineService) segment(transcript string) ([]Segment, error) {
 	return segments, nil
 }
 
+// GetEmbedding is a public wrapper for embedding generation.
+func (p *PipelineService) GetEmbedding(text string) ([]float32, error) {
+	return p.getEmbedding(text)
+}
+
 // getEmbedding calls qwen3-embedding-8b on Replicate to get a 1024-dim vector.
 func (p *PipelineService) getEmbedding(text string) ([]float32, error) {
 	// qwen3 expects a JSON array of strings

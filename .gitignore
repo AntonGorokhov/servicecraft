@@ -4,6 +4,10 @@
 # Backend
 backend/tmp/
 backend/vetkb-api
+backend/api
+
+# Build artifacts
+frontend/tsconfig.tsbuildinfo
 
 # Frontend
 frontend/node_modules/

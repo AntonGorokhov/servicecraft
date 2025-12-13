@@ -11,9 +11,12 @@ type Config struct {
 	JWTSecret        string
 	AdminEmail       string
 	AdminPassword    string
-	ReplicateToken   string
-	QdrantHost       string
-	QdrantPort       string
+	ReplicateToken    string
+	QdrantHost        string
+	QdrantPort        string
+	YandexGPTAPIKey   string
+	YandexGPTFolderID string
+	YandexGPTModel    string
 }
 
 func Load() *Config {
@@ -27,8 +30,11 @@ func Load() *Config {
 		AdminEmail:       getEnv("ADMIN_EMAIL", "admin@vetkb.local"),
 		AdminPassword:    getEnv("ADMIN_PASSWORD", "admin123"),
 		ReplicateToken:   getEnv("REPLICATE_API_TOKEN", ""),
-		QdrantHost:       getEnv("QDRANT_HOST", "localhost"),
-		QdrantPort:       getEnv("QDRANT_PORT", "6333"),
+		QdrantHost:        getEnv("QDRANT_HOST", "localhost"),
+		QdrantPort:        getEnv("QDRANT_PORT", "6333"),
+		YandexGPTAPIKey:   getEnv("YANDEX_GPT_API_KEY", ""),
+		YandexGPTFolderID: getEnv("YANDEX_GPT_FOLDER_ID", ""),
+		YandexGPTModel:    getEnv("YANDEX_GPT_MODEL", "yandexgpt-lite/latest"),
 	}
 }
 

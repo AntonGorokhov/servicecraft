@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/vetkb/backend/internal/agent"
 	"github.com/vetkb/backend/internal/config"
 	"github.com/vetkb/backend/internal/database"
 	"github.com/vetkb/backend/internal/handlers"
@@ -19,7 +20,7 @@ func main() {
 	db := database.Connect(cfg)
 
 	// AutoMigrate
-	if err := db.AutoMigrate(&models.Company{}, &models.User{}, &models.Article{}, &models.Comment{}); err != nil {
+	if err := db.AutoMigrate(&models.Company{}, &models.User{}, &models.Article{}, &models.Comment{}, &models.ChatSession{}, &models.ChatMessage{}); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}
 
@@ -40,6 +41,7 @@ func main() {
 	companyService := services.NewCompanyService(db)
 	articleService := services.NewArticleService(db)
 	commentService := services.NewCommentService(db)
+	chatService := services.NewChatService(db)
 
 	// Qdrant
 	qdrantPort, _ := strconv.Atoi(cfg.QdrantPort)
@@ -52,6 +54,10 @@ func main() {
 	// Pipeline
 	pipelineService := pipeline.NewPipelineService(cfg.ReplicateToken, qdrantService, articleService, priceService)
 
+	// Agent (YandexGPT)
+	yandexClient := agent.NewYandexGPTClient(cfg.YandexGPTAPIKey, cfg.YandexGPTFolderID, cfg.YandexGPTModel)
+	agentService := agent.NewAgentService(qdrantService, articleService, priceService, pipelineService, yandexClient, chatService)
+
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	profileHandler := handlers.NewProfileHandler(authService)
@@ -60,6 +66,7 @@ func main() {
 	commentHandler := handlers.NewCommentHandler(commentService, articleService)
 	pipelineHandler := handlers.NewPipelineHandler(pipelineService)
 	priceHandler := handlers.NewPriceHandler(priceService)
+	agentHandler := handlers.NewAgentHandler(agentService, chatService)
 
 	r := gin.Default()
 	r.Use(middleware.CORS())
@@ -99,6 +106,12 @@ func main() {
 
 	// Pipeline routes (admin or superadmin)
 	protected.POST("/pipeline/process", pipelineHandler.Process)
+
+	// Agent routes (authenticated)
+	protected.POST("/agent/chat", agentHandler.Chat)
+	protected.GET("/agent/sessions", agentHandler.ListSessions)
+	protected.GET("/agent/sessions/:id/messages", agentHandler.GetMessages)
+	protected.DELETE("/agent/sessions/:id", agentHandler.DeleteSession)
 
 	// Superadmin routes
 	admin := protected.Group("/admin")

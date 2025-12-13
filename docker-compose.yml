@@ -33,6 +33,9 @@ services:
       REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6333
+      YANDEX_GPT_API_KEY: ${YANDEX_GPT_API_KEY:-}
+      YANDEX_GPT_FOLDER_ID: ${YANDEX_GPT_FOLDER_ID:-}
+      YANDEX_GPT_MODEL: ${YANDEX_GPT_MODEL:-yandexgpt-lite/latest}
     depends_on:
       postgres:
         condition: service_healthy
