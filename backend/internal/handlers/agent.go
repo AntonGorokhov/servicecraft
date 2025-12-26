@@ -99,6 +99,73 @@ func (h *AgentHandler) Chat(c *gin.Context) {
 	flusher.Flush()
 }
 
+// RAGStream handles SSE streaming RAG queries for voice agent — no auth.
+func (h *AgentHandler) RAGStream(c *gin.Context) {
+	var req struct {
+		Text      string `json:"text" binding:"required"`
+		SessionID uint   `json:"session_id"`
+		CompanyID *uint  `json:"company_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "text is required"})
+		return
+	}
+
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no")
+
+	ctx := c.Request.Context()
+	flusher := c.Writer
+
+	sources, err := h.agentService.Query(ctx, req.Text, req.SessionID, req.CompanyID, func(text string) {
+		data, _ := json.Marshal(map[string]string{"text": text})
+		fmt.Fprintf(flusher, "event: token\ndata: %s\n\n", data)
+		flusher.Flush()
+	})
+
+	if err != nil {
+		errData, _ := json.Marshal(map[string]string{"error": err.Error()})
+		fmt.Fprintf(flusher, "event: error\ndata: %s\n\n", errData)
+		flusher.Flush()
+		return
+	}
+
+	if sources != nil {
+		sourcesData, _ := json.Marshal(sources)
+		fmt.Fprintf(flusher, "event: sources\ndata: %s\n\n", sourcesData)
+		flusher.Flush()
+	}
+
+	fmt.Fprintf(flusher, "event: done\ndata: {}\n\n")
+	flusher.Flush()
+}
+
+// RAG handles internal (Pipecat) RAG queries — no auth, non-streaming.
+func (h *AgentHandler) RAG(c *gin.Context) {
+	var req struct {
+		Text      string `json:"text" binding:"required"`
+		SessionID uint   `json:"session_id"`
+		CompanyID *uint  `json:"company_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "text and session_id are required"})
+		return
+	}
+
+	response, sources, err := h.agentService.QuerySync(c.Request.Context(), req.Text, req.SessionID, req.CompanyID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"response": response,
+		"sources":  sources,
+	})
+}
+
 // ListSessions returns user's chat sessions.
 func (h *AgentHandler) ListSessions(c *gin.Context) {
 	userID, _ := c.Get("userID")

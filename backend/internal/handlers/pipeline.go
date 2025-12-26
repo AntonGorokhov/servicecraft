@@ -20,6 +20,15 @@ func NewPipelineHandler(s *pipeline.PipelineService) *PipelineHandler {
 	return &PipelineHandler{pipelineService: s}
 }
 
+// Reindex re-embeds and indexes all articles in Qdrant.
+func (h *PipelineHandler) Reindex(c *gin.Context) {
+	if err := h.pipelineService.IndexExistingArticles(nil); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
 // Process handles POST /api/pipeline/process
 func (h *PipelineHandler) Process(c *gin.Context) {
 	// Check role: admin or superadmin

@@ -1,10 +1,13 @@
 package pipeline
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -15,7 +18,6 @@ import (
 
 const (
 	similarityThreshold = 0.65
-	embeddingVersion    = "lucataco/qwen3-embedding-8b:42d968487820032a1535d81ea20df16f442ea308ec5abae6b5d6cf4675eb3e2f"
 )
 
 // Segment represents a topic segment extracted from the transcript.
@@ -49,6 +51,7 @@ type ProcessResult struct {
 // PipelineService orchestrates the call processing pipeline.
 type PipelineService struct {
 	replicate      *ReplicateClient
+	openaiKey      string
 	qdrant         *QdrantService
 	articleService *services.ArticleService
 	priceService   *services.PriceService
@@ -56,9 +59,10 @@ type PipelineService struct {
 	articleLocks   map[string]*sync.Mutex // per-slug locks for concurrent segment processing
 }
 
-func NewPipelineService(replicateToken string, qdrant *QdrantService, articleService *services.ArticleService, priceService *services.PriceService) *PipelineService {
+func NewPipelineService(replicateToken string, openaiKey string, qdrant *QdrantService, articleService *services.ArticleService, priceService *services.PriceService) *PipelineService {
 	return &PipelineService{
 		replicate:      NewReplicateClient(replicateToken),
+		openaiKey:      openaiKey,
 		qdrant:         qdrant,
 		articleService: articleService,
 		priceService:   priceService,
@@ -102,7 +106,7 @@ func (p *PipelineService) Process(audioBase64 string, companyID *uint, callID st
 	log.Printf("[pipeline] Found %d segments", len(segments))
 
 	// Ensure existing articles are indexed in Qdrant
-	if err := p.indexExistingArticles(companyID); err != nil {
+	if err := p.IndexExistingArticles(companyID); err != nil {
 		log.Printf("[pipeline] Warning: article indexing error: %v", err)
 	}
 
@@ -170,49 +174,51 @@ func (p *PipelineService) GetEmbedding(text string) ([]float32, error) {
 	return p.getEmbedding(text)
 }
 
-// getEmbedding calls qwen3-embedding-8b on Replicate to get a 1024-dim vector.
+// getEmbedding calls OpenAI text-embedding-3-large to get a 1024-dim vector.
 func (p *PipelineService) getEmbedding(text string) ([]float32, error) {
-	// qwen3 expects a JSON array of strings
-	textJSON := fmt.Sprintf(`[%q]`, text)
-
-	output, err := p.replicate.RunVersion(embeddingVersion, map[string]interface{}{
-		"text":          textJSON,
-		"normalize":     true,
-		"embedding_dim": 1024,
+	payload, _ := json.Marshal(map[string]interface{}{
+		"model":      "text-embedding-3-large",
+		"input":      text,
+		"dimensions": 1024,
 	})
+
+	req, err := http.NewRequest("POST", "https://api.openai.com/v1/embeddings", bytes.NewReader(payload))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+p.openaiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("openai embeddings: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("openai embeddings %d: %s", resp.StatusCode, string(body))
 	}
 
-	// Output is {"embedding_dim": 1024, "embeddings": [[float, ...]]}
-	outMap, ok := output.(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("unexpected embedding output type: %T", output)
+	var result struct {
+		Data []struct {
+			Embedding []float32 `json:"embedding"`
+		} `json:"data"`
 	}
-
-	embeddings, ok := outMap["embeddings"].([]interface{})
-	if !ok || len(embeddings) == 0 {
-		return nil, fmt.Errorf("no embeddings in output")
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("decode embeddings: %w", err)
 	}
-
-	firstEmb, ok := embeddings[0].([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("unexpected embedding format")
+	if len(result.Data) == 0 {
+		return nil, fmt.Errorf("no embeddings in response")
 	}
-
-	vec := make([]float32, len(firstEmb))
-	for i, v := range firstEmb {
-		f, ok := v.(float64)
-		if !ok {
-			return nil, fmt.Errorf("embedding element %d not a number", i)
-		}
-		vec[i] = float32(f)
-	}
-	return vec, nil
+	return result.Data[0].Embedding, nil
 }
 
-// indexExistingArticles ensures all articles are indexed in Qdrant.
-func (p *PipelineService) indexExistingArticles(companyID *uint) error {
+// IndexExistingArticles ensures all articles are indexed in Qdrant.
+func (p *PipelineService) IndexExistingArticles(companyID *uint) error {
 	articles, err := p.articleService.ListWithEmbeddings(companyID)
 	if err != nil {
 		return err

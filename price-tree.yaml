@@ -1,0 +1,3535 @@
+- category: 🩺 Приём и консультации
+  services:
+    - service: Вакцинация Вакциной Клиента (осмотр животного, введение биопрепарата, БЕЗ ПЕЧАТИ!)
+      price: 1500
+    - group: Консультация
+      services:
+        - service: Консультация БЕЗ Животного по Содержанию и Кормлению (10-20 мин)
+          price: 900
+        - service: Консультация Гастроэнтеролога по Анализам
+          price: 1500
+    - group: Консультация по результатам анализов сторонней клиники
+      services:
+        - service: Консультация по Результатам Анализов Сторонней клиники Врач Приема
+          price: 1400
+        - service: Консультация по Результатам Анализов Сторонней Клиники Узким Специалистом
+          price: 4400
+    - service: Лекарственный мониторинг (фенобарбитал, паглюферал) – через 2 часа после приема препарата, проба №2
+      price: 4400
+    - group: Онлайн-консультация
+      services:
+        - service: Онлайн-консультация терапевта
+          price: 1500
+        - service: Онлайн-консультация узкопрофильного специалиста
+          price: 2500
+    - service: Осмотр врачом стационарного отделения
+      price: 900
+    - group: Первичный приём
+      services:
+        - group: Первичный приём
+          services:
+            - service: Первичный приём дерматолога. Осмотр
+              price: 2200
+            - service: Первичный приём терапевта. Осмотр, консультация в НОЧНОЕ время (с 23,00 до 7,00)
+              price: 1400
+            - service: Первичный приём узкого специалиста. Осмотр
+              price: 2200
+            - service: Первичный приём узкого специалиста. Осмотр на дому. Консультация по результатам анализов
+              price: 5000
+    - service: Повторное гистологическое исследование (одна локализация, включая лимфатические узлы) (ПС)
+      price: 5000
+    - group: Повторный приём
+      services:
+        - group: Повторный приём
+          services:
+            - service: Повторный приём дерматолога. Осмотр
+              price: 2000
+            - service: Повторный приём кардиолога
+              price: 2000
+            - service: Повторный приём офтальмолога
+              price: 3000
+            - service: Повторный приём травматолога
+              price: 2000
+            - service: Повторный приём узкого специалиста. Осмотр
+              price: 2000
+    - service: Приём грызуны, птицы. Осмотр, консультация. (До 20 минут)
+      price: 1100
+    - service: Приём диетолога
+      price: 2100
+    - service: Приём кардиолога
+      price: 2200
+    - service: Приём офтальмолога (включая ВГД,офтальмоскопию,тест Ширмера/флюоресцином,биомикроскопию глаза)
+      price: 4400
+    - group: Приём Пульмонолога
+      services:
+        - service: Приём Пульмонолога Первичный (продолжительность 60 мин)
+          price: 4900
+        - service: Приём Пульмонолога Повторный (продолжительность 45 мин)
+          price: 4700
+    - service: Прием терапевта. Осмотр, консультация. (До 30 минут)
+      price: 900
+    - service: Приём травматолога
+      price: 2200
+- category: 💉 Профилактика
+  services:
+    - group: Вакцинация АСТЕРИОН
+      services:
+        - service: Вакцинация АСТЕРИОН DHPPI+L (1 доза)
+          price: 2400
+        - service: Вакцинация АСТЕРИОН DHPPI+LR (1 доза)
+          price: 3000
+    - group: Вакцинация
+      services:
+        - service: Вакцинация БИОВАК DPAL
+          price: 1500
+        - service: Вакцинация БИОФЕЛ PCH
+          price: 4500
+        - service: Вакцинация БИОФЕЛ PCHR
+          price: 5000
+        - service: Вакцинация ВАКДЕРМ 1 доза
+          price: 1000
+        - service: Вакцинация ВАКДЕРМ-F (1 доза)
+          price: 1000
+        - service: Вакцинация ДЕФЕНСОР - 3
+          price: 3500
+        - service: Вакцинация ЛЕОМИНОР (вирусная лейкемия кошек)
+          price: 1000
+        - service: Вакцинация МИКСОМАТОЗ и ВГБК (кролики)
+          price: 1500
+        - service: Вакцинация МУЛЬТИФЕЛ 4
+          price: 2000
+        - service: Вакцинация ПОЛИВАК - ТМ для Кошек
+          price: 1000
+        - service: Вакцинация ПОЛИВАК - ТМ
+          variants:
+            - condition: для Собак
+              price: 1000
+        - service: Вакцинация РАБИГЕН МОНО
+          price: 3500
+        - service: Вакцинация РАБИЗИН
+          price: 3800
+        - service: Вакцинация РАБИКАН
+          price: 1000
+        - service: Вакцинация РАБИКС
+          variants:
+            - condition: для Собак
+              price: 1000
+        - service: Вакцинация РАБИФЕЛ для Кошек
+          price: 1000
+        - service: Вакцинация ФЕЛИГЕН CRР
+          price: 4500
+        - service: Вакцинация ФЕЛОЦЕЛ CVR
+          price: 5000
+    - group: Вакцинация БИОКАН
+      services:
+        - service: Вакцинация БИОКАН DHPPi+ L
+          variants:
+            - condition: L
+              price: 4500
+        - service: Вакцинация БИОКАН DHPPi+ LR
+          variants:
+            - condition: R
+              price: 5000
+        - service: Вакцинация БИОКАН Puppy
+          price: 1600
+    - group: Вакцинация ВАНГАРД 5+
+      services:
+        - service: Вакцинация ВАНГАРД 5+ ДЕФЕНСОР
+          variants:
+            - condition: Р
+              price: 5500
+        - service: Вакцинация ВАНГАРД 5+ НОБИВАК R
+          variants:
+            - condition: R
+              price: 5500
+        - service: Вакцинация ВАНГАРД 5+ РАБИГЕН МОНО
+          price: 5500
+        - service: Вакцинация ВАНГАРД 5+ РАБИЗИН
+          price: 6500
+    - group: Вакцинация ВАНГАРД 7+
+      services:
+        - service: Вакцинация ВАНГАРД 7+ ДЕФЕНСОР
+          variants:
+            - condition: Р
+              price: 6000
+        - service: Вакцинация ВАНГАРД 7+ НОБИВАК R
+          variants:
+            - condition: R
+              price: 6000
+        - service: Вакцинация ВАНГАРД 7+ РАБИГЕН МОНО
+          variants:
+            - condition: О
+              price: 6000
+        - service: Вакцинация ВАНГАРД 7+ РАБИКС
+          variants:
+            - condition: С
+              price: 5800
+    - group: Вакцинация ВАНГАРД
+      services:
+        - service: Вакцинация ВАНГАРД 7
+          price: 5500
+        - service: Вакцинация ВАНГАРД ПЛЮС 5 L4 CV
+          price: 4800
+    - group: Вакцинация МУЛЬТИКАН
+      services:
+        - service: Вакцинация МУЛЬТИКАН 4
+          price: 1800
+        - service: Вакцинация МУЛЬТИКАН 6
+          price: 2000
+        - service: Вакцинация МУЛЬТИКАН 8
+          price: 2500
+    - group: Вакцинация МУЛЬТИФЕЛ 4+
+      services:
+        - service: Вакцинация МУЛЬТИФЕЛ 4+ РАБИГЕН МОНО
+          price: 5000
+        - service: Вакцинация МУЛЬТИФЕЛ 4+ РАБИФЕЛ
+          variants:
+            - condition: Л
+              price: 2500
+    - group: Вакцинация НОБИВАК DHPPi+ НОБИВАК L(L4)+
+      services:
+        - service: Вакцинация НОБИВАК DHPPi+ НОБИВАК L(L4)+ НОБИВАК R
+          variants:
+            - condition: R
+              price: 6800
+        - service: Вакцинация НОБИВАК DHPPi+ НОБИВАК L(L4)+ РАБИГЕН
+          variants:
+            - condition: ЕН
+              price: 6800
+    - group: Вакцинация НОБИВАК DHPPi+ НОБИВАК
+      services:
+        - service: Вакцинация НОБИВАК DHPPi+ НОБИВАК L (L4)
+          variants:
+            - condition: )
+              price: 6500
+        - service: Вакцинация НОБИВАК DHPPi+ НОБИВАК RL
+          variants:
+            - condition: L
+              price: 6800
+    - service: Вакцинация НОБИВАК DHPPi+ РАБИЗИН
+      variants:
+        - condition: Н
+          price: 7800
+    - group: Вакцинация НОБИВАК
+      services:
+        - service: Вакцинация НОБИВАК DHPPi
+          price: 5000
+        - service: Вакцинация НОБИВАК L (L4)
+          price: 2800
+        - service: Вакцинация НОБИВАК MУХО - RHD (для кроликов)
+          price: 2500
+        - service: Вакцинация НОБИВАК Puppy DP
+          price: 2200
+        - service: Вакцинация НОБИВАК R
+          price: 3500
+        - service: Вакцинация НОБИВАК RL
+          price: 4000
+        - service: Вакцинация НОБИВАК Tricat (Trio)
+          price: 6500
+        - service: Вакцинация НОБИВАК КС
+          price: 5000
+    - group: Вакцинация НОБИВАК Tricat (Trio)+
+      services:
+        - service: Вакцинация НОБИВАК Tricat (Trio)+ НОБИВАК R
+          variants:
+            - condition: R
+              price: 6800
+        - service: Вакцинация НОБИВАК Tricat (Trio)+ РАБИГЕН МОНО
+          variants:
+            - condition: О
+              price: 6800
+        - service: Вакцинация НОБИВАК Tricat (Trio)+ РАБИЗИН
+          variants:
+            - condition: Н
+              price: 7800
+    - group: Вакцинация ПУРЕВАКС
+      services:
+        - service: Вакцинация ПУРЕВАКС FeLV (против вирусного лейкоза)
+          price: 7800
+        - service: Вакцинация ПУРЕВАКС RCP
+          price: 7000
+        - service: Вакцинация ПУРЕВАКС RCPCH
+          price: 7000
+    - group: Вакцинация ПУРЕВАКС RCP+
+      services:
+        - service: Вакцинация ПУРЕВАКС RCP+ ДЕФЕНСОР
+          variants:
+            - condition: Р
+              price: 7800
+        - service: Вакцинация ПУРЕВАКС RCP+ НОБИВАК R
+          variants:
+            - condition: R
+              price: 7800
+        - service: Вакцинация ПУРЕВАКС RCP+ РАБИГЕН МОНО
+          variants:
+            - condition: О
+              price: 7800
+        - service: Вакцинация ПУРЕВАКС RCP+ РАБИЗИН+ стрижка когтей
+          variants:
+            - condition: ей
+              price: 7800
+        - service: Вакцинация ПУРЕВАКС RCP+ РАБИЗИН
+          variants:
+            - condition: Н
+              price: 7800
+    - group: Вакцинация ПУРЕВАКС RCPCH+
+      services:
+        - service: Вакцинация ПУРЕВАКС RCPCH+ НОБИВАК R
+          variants:
+            - condition: R
+              price: 7800
+        - service: Вакцинация ПУРЕВАКС RCPCH+ РАБИГЕН МОНО
+          variants:
+            - condition: О
+              price: 7800
+        - service: Вакцинация ПУРЕВАКС RCPCH+ РАБИЗИН+ стрижка когтей
+          variants:
+            - condition: ей
+              price: 7800
+        - service: Вакцинация ПУРЕВАКС RCPCH+ РАБИЗИН
+          variants:
+            - condition: Н
+              price: 7800
+    - group: Вакцинация РАББИВАК -
+      services:
+        - service: Вакцинация РАББИВАК - V (геморрагическая болезнь кроликов)
+          price: 650
+        - service: Вакцинация РАББИВАК - В (миксоматоз кроликов)
+          price: 650
+    - group: Вакцинация ФЕЛИГЕН CRР+
+      services:
+        - service: Вакцинация ФЕЛИГЕН CRР+ НОБИВАК R
+          variants:
+            - condition: R
+              price: 5000
+        - service: Вакцинация ФЕЛИГЕН CRР+ РАБИГЕН МОНО
+          variants:
+            - condition: О
+              price: 5000
+        - service: Вакцинация ФЕЛИГЕН CRР+ РАБИФЕЛ
+          variants:
+            - condition: Л
+              price: 5000
+    - group: Вакцинация ФЕЛОЦЕЛ CVR+
+      services:
+        - service: Вакцинация ФЕЛОЦЕЛ CVR+ НОБИВАК R
+          variants:
+            - condition: R
+              price: 5500
+        - service: Вакцинация ФЕЛОЦЕЛ CVR+ РАБИГЕН МОНО
+          variants:
+            - condition: О
+              price: 5500
+        - service: Вакцинация ФЕЛОЦЕЛ CVR+ РАБИЗИН
+          variants:
+            - condition: Н
+              price: 6000
+        - service: ВАкцинация ФЕЛОЦЕЛ CVR+ РАБИФЕЛ
+          variants:
+            - condition: Л
+              price: 4000
+    - group: Вакцинация ЭУРИКАН DHPPI+ L+
+      services:
+        - service: Вакцинация ЭУРИКАН DHPPI+ L+ ДЕФЕНСОР-3
+          variants:
+            - condition: '-3'
+              price: 7800
+        - service: Вакцинация ЭУРИКАН DHPPI+ L+ НОБИВАК R
+          variants:
+            - condition: R
+              price: 7500
+        - service: Вакцинация ЭУРИКАН DHPPI+ L+ РАБИГЕН МОНО
+          variants:
+            - condition: НО
+              price: 7500
+        - service: Вакцинация ЭУРИКАН DHPPI+ L+ РАБИЗИН
+          variants:
+            - condition: ИН
+              price: 7800
+    - group: Вакцинация ЭУРИКАН
+      services:
+        - service: Вакцинация ЭУРИКАН DHPPI+ L
+          variants:
+            - condition: L
+              price: 7000
+        - service: Вакцинация ЭУРИКАН DHPPi2+LR
+          price: 7800
+    - service: Контроль эффективности вакцинации
+      variants:
+        - condition: собак (ИФА)
+          price: 4850
+    - service: Противомикробная аутовакцина
+      price: 6950
+    - service: Чипирование животных
+      price: 4500
+- category: 🔬 Лабораторная диагностика
+  services:
+    - service: D-димер
+      price: 2800
+    - service: Аденовироз респираторный ПЦР
+      price: 900
+    - group: Анализ на титры к вирусу бешенства
+      services:
+        - service: Анализ на титры к вирусу бешенства методом ИФА CITO (3-10 дней)
+          price: 20500
+        - service: Анализ на титры к вирусу бешенства методом ИФА (от 10й)
+          variants:
+            - condition: о 20 дней)
+              price: 15500
+    - service: Анаплазмоз ПЦР
+      price: 900
+    - service: Анемии кошек ПЦР
+      price: 3900
+    - service: Антимюллеров гормон
+      price: 2850
+    - service: Аспергиллез ПЦР
+      price: 1200
+    - service: Аспергиллез ПЦР (ПС)
+      price: 2500
+    - service: Бартонеллез ПЦР
+      price: 900
+    - service: Биохимия мочи (1 показатель)
+      price: 450
+    - service: Бордетеллез ПЦР
+      price: 900
+    - service: Боррелиоз (Болезнь Лайма) ПЦР
+      price: 900
+    - service: Бруцеллез ПЦР
+      price: 1200
+    - service: Вирусная лейкемия Ag+вирусный иммунодефицит Ab (ИХ)
+      variants:
+        - condition: )
+          price: 2400
+    - group: Вирусная лейкемия кошек (FeLV)
+      services:
+        - group: Вирусная лейкемия кошек
+          services:
+            - service: Вирусная лейкемия кошек (FeLV, обнаружение вирусной РНК и провирусной ДНК одновременно) ПЦР ВЮ
+              price: 2600
+            - service: Вирусная лейкемия кошек ДНК FeLV ПЦР Н
+              price: 900
+            - service: Вирусная лейкемия кошек (провирус FeLV) ПЦР
+              price: 900
+            - service: Вирусная лейкемия кошек РНК FeLV ПЦР Н
+              price: 1100
+            - service: Вирусная лейкемия кошек с дифференциацией провирусной ДНК/РНК FeLV ПЦР
+              price: 1200
+    - group: Вирусный
+      services:
+        - service: Вирусный гепатит собак ПЦР
+          price: 900
+        - service: Вирусный перитонит кошек ПЦР
+          price: 900
+        - service: Вирусный ринотрахеит кошек ПЦР
+          price: 900
+    - group: Вирусный иммунодефицит кошек
+      services:
+        - service: Вирусный иммунодефицит кошек Ab ИХ
+          price: 1850
+        - service: Вирусный иммунодефицит кошек Ig G ИФА
+          price: 2400
+        - service: Вирусный иммунодефицит кошек (провирус FIV) ПЦР
+          price: 900
+    - group: Вирусный лейкоз (FeLV). Выявление
+      services:
+        - service: Вирусный лейкоз (FeLV). Выявление ДНК провируса лейкоза (латентная инфекция) ПЦР ПС
+          price: 1400
+        - service: Вирусный лейкоз (FeLV). Выявление РНК вируса лейкоза (активная инфекция) ПЦР ПС
+          price: 1400
+    - service: Вызов Врача на дом и Доставка анализов в клинику
+      price: 3000
+    - service: Выявление генов резистентности к гликопептидным и бета-лактамным аб у бактерий ПЦР (ПС)
+      price: 2000
+    - service: Гемобартонеллез ПЦР
+      price: 1900
+    - service: Герпесвирус ПЦР
+      price: 900
+    - group: Гормон Альдостерон
+      services:
+        - service: Гормон Альдостерон 2 пробы (в составе Теста стимуляции АКТГ) Ш (до 9 дней)
+          price: 2900
+        - service: Гормон Альдостерон Ш
+          price: 1900
+    - service: Гормон Андростендион Ш (до 9 дней)
+      price: 2500
+    - service: Дерматофиты ПЦР (Микроспория+Трихофития ПЦР)
+      price: 2200
+    - service: Диагностика вирусного иммунодефицита (определение уровня IgG к FIV, ИФА) ПС
+      price: 3400
+    - service: Диарея собаки/кошки ПЦР
+      price: 4200
+    - service: Дирофиляриоз с дифференциацией ПЦР ( D.immitis/D.repens)
+      price: 1200
+    - service: Дополнительный посев на анаэробы, определение чувствительности к антимикробным препаратам(ПС)
+      price: 2500
+    - service: Забор анализов для сторонних клиник
+      price: 1100
+    - group: Иммунофенотипирование
+      services:
+        - service: Иммунофенотипирование лимфомы (лимфатические узлы) у
+          variants:
+            - condition: собак (ПС)
+              price: 8000
+        - service: Иммунофенотипирование хронического лимфоидного лейкоза (кровь) у
+          variants:
+            - condition: собак (ПС)
+              price: 8000
+    - service: Калицивироз кошек ПЦР
+      price: 900
+    - service: Кампилобактериоз ПЦР
+      price: 1200
+    - service: Клещевые инвазии собак ПЦР
+      price: 3300
+    - group: Клостридиоз
+      services:
+        - service: Клостридиоз ПЦР
+          price: 900
+        - service: Клостридиоз с дифференциацией ПЦР
+          price: 1600
+    - group: Комплексный анализ
+      services:
+        - service: Комплексный анализ 16 CITO (AW704) 1 час
+          price: 3000
+        - service: Комплексный анализ кала
+          price: 1300
+        - service: Комплексный анализ тяжелых металлов и микроэлементов 20 показателей
+          price: 6300
+    - service: Коронавирусный гастроэнтерит ПЦР
+      price: 900
+    - group: Криптококкоз
+      services:
+        - service: Криптококкоз Cryptococcus spp. ПЦР ВЮ
+          price: 3100
+        - service: Криптококкоз ПЦР (ПС)
+          price: 2000
+    - service: Криптоспоридиоз ПЦР
+      price: 1200
+    - group: Лептоспироз
+      services:
+        - group: Лептоспироз Ig
+          services:
+            - service: Лептоспироз Ig G+ Ig M ИФА
+              price: 5800
+            - service: Лептоспироз Ig G ИФА
+              price: 2500
+            - service: Лептоспироз Ig M ИФА
+              price: 3800
+        - service: Лептоспироз ПЦР
+          price: 1200
+    - service: Листериоз ПЦР
+      price: 1400
+    - service: Лямблиоз ПЦР
+      price: 900
+    - group: Микоплазмоз
+      services:
+        - service: Микоплазмоз M.galliseptica ПЦР
+          price: 1650
+        - service: Микоплазмоз Micoplasma spp. ПЦР
+          price: 900
+        - service: Микоплазмоз M.synovia ПЦР
+          price: 1650
+    - group: Микоплазмоз патогенные штаммы
+      services:
+        - service: Микоплазмоз патогенные штаммы кошек M.felis, M.gateae ПЦР
+          price: 1200
+        - service: Микоплазмоз патогенные штаммы собак M.canis, M.cynos ПЦР
+          price: 1200
+    - service: Назначение дерматолога по анализам
+      price: 1900
+    - service: Неоспороз ПЦР
+      price: 800
+    - group: Общеклинический анализ мочи
+      services:
+        - service: Общеклинический анализ мочи расширенный
+          price: 1500
+        - service: Общеклинический анализ мочи (Химическое исследование тест-полоской)
+          price: 900
+    - group: Общий анализ
+      services:
+        - service: Общий анализ кала (Копрограмма)
+          price: 1000
+        - service: Общий анализ крови+СОЭ+лейкограмма
+          variants:
+            - condition: а
+              price: 1650
+        - service: Общий анализ крови+СОЭ+лейкограмма CITO Н
+          variants:
+            - condition: Н
+              price: 1900
+        - service: Общий анализ крови ВЮ
+          price: 1500
+        - service: Общий анализ Помета ПТИЦ Н
+          price: 1000
+    - group: Общий анализ крови+Лейкограмма
+      services:
+        - service: Общий анализ крови+Лейкограмма (без СОЭ)
+          variants:
+            - condition: )
+              price: 1550
+        - service: Общий анализ крови+Лейкограмма с микроскопией (без СОЭ)
+          variants:
+            - condition: )
+              price: 1600
+    - service: Общий клинический анализ крови CITO (AW) 1 час
+      price: 3000
+    - service: Один биохимический показатель из основного списка
+      price: 160
+    - service: Один биохимический показатель из основного списка CITO
+      price: 320
+    - service: Определение мутации в гене c-kit при GIST, 11 экзон (только собакам) ПЦР (ПС)
+      price: 3500
+    - group: Определение мутации в гене c-kit у кошек при мастоцитоме,
+      services:
+        - service: Определение мутации в гене c-kit у кошек при мастоцитоме, 8, 9, 11 экзоны ПЦР (ПС)
+          price: 7500
+        - service: Определение мутации в гене c-kit у кошек при мастоцитоме, 8 экзон ПЦР (ПС)
+          price: 3500
+    - group: Определение мутации в гене c-kit у собак при
+      services:
+        - service: Определение мутации в гене c-kit у собак при мастоцитоме ПЦР (ПС)
+          price: 3500
+        - service: Определение мутации в гене c-kit у собак при меланоме, 11 экзон ПЦР (ПС)
+          price: 3500
+    - service: Орнитоз Chl.psittaci ПЦР
+      price: 900
+    - service: Особо опасные болезни собак ПЦР
+      price: 3150
+    - service: Панлейкопения кошек ПЦР
+      price: 900
+    - service: Парагрипп собак ПЦР
+      price: 900
+    - service: Парвовирусная инфекция собак ПЦР
+      price: 900
+    - group: Пироплазмоз
+      services:
+        - service: Пироплазмоз B. canis ПЦР
+          price: 900
+        - service: Пироплазмоз общий ПЦР (B.canis, b.vogeli, b.rossi,b.gibsoni,b.felis)
+          price: 1600
+    - service: Полиомавироз птиц ПЦР
+      price: 1200
+    - service: Полная коагулограмма (Протромбиновое время, АЧТВ, Тромбиновое время, Фибриноген)
+      price: 1950
+    - service: Посев аспирата на микрофлору(киста, серома,абсцесс, аспират простаты, ухо, пазухи носа, БАЛ (ПС)
+      price: 4000
+    - service: Посев биоптата (слизистая оболочка мочевого пузыря, другие слизистые, внутренние органы) (ПС)
+      price: 3500
+    - service: Посев бронха-альвеолярного лаважа (БАЛ)
+      variants:
+        - condition: 10MIC+БФ+АМ
+          price: 4800
+        - condition: 12 АБ+БФ+АМ
+          price: 2800
+        - condition: 24 АБ+БФ+АМ
+          price: 3500
+        - condition: Без АБ
+          price: 1800
+    - service: Посев желчи
+      variants:
+        - condition: 10MIC+БФ+АМ
+          price: 4800
+        - condition: 12 АБ+БФ+АМ
+          price: 2800
+        - condition: 24 АБ+БФ+АМ
+          price: 3500
+        - condition: Без АБ
+          price: 1800
+    - service: Посев желчи, синовии, ликвора на микрофлору, определение чувствительности к аб (ПС)
+      price: 3500
+    - service: Посев желчи с определением остаточной антимикробной активности (ОАА)(минимум 1 мл желчи)(ПС)
+      price: 4000
+    - group: Посев из
+      services:
+        - service: Посев из зоба
+          variants:
+            - condition: 10MIC+БФ+АМ
+              price: 4850
+            - condition: 12 АБ+БФ+АМ
+              price: 2800
+            - condition: 24 АБ+БФ+АМ
+              price: 3500
+            - condition: Без АБ
+              price: 1800
+        - service: Посев из клоаки
+          variants:
+            - condition: 10MIC+БФ+АМ
+              price: 4850
+            - condition: 12 АБ+БФ+АМ
+              price: 2800
+            - condition: 24 АБ+БФ+АМ
+              price: 3500
+            - condition: Без АБ
+              price: 1800
+    - group: Посев из НСП
+      services:
+        - service: Посев из НСП (1 ухо)
+          variants:
+            - condition: 10MIC+БФ+АМ
+              price: 4800
+            - condition: 12 АБ+БФ+АМ
+              price: 2800
+            - condition: 24 АБ+БФ+АМ
+              price: 3500
+            - condition: Без АБ
+              price: 1800
+        - service: Посев из НСП (2 уха)
+          variants:
+            - condition: 10MIC+БФ+АМ
+              price: 6200
+            - condition: 12 АБ+БФ+АМ
+              price: 3100
+            - condition: 24 АБ+БФ+АМ
+              price: 4100
+            - condition: Без АБ
+              price: 2200
+    - group: Посев из НСП на дрожжевые грибы
+      services:
+        - service: Посев из НСП на дрожжевые грибы (1 ухо)
+          variants:
+            - condition: 8 АМ
+              price: 1800
+            - condition: Без АМ
+              price: 1550
+        - service: Посев из НСП на дрожжевые грибы (2 уха)
+          variants:
+            - condition: 8 АМ
+              price: 2100
+            - condition: Без АМ
+              price: 1850
+    - group: Посев крови на
+      services:
+        - service: Посев крови на микрофлору, определение чувствительности к антимикробным препаратам (ПС)
+          price: 7500
+        - service: Посев крови на стерильность
+          variants:
+            - condition: 10MIC+БФ+АМ
+              price: 5000
+            - condition: 12 АБ+БФ+АМ
+              price: 3200
+            - condition: 24 АБ+БФ+АМ
+              price: 3500
+            - condition: Без АБ
+              price: 2300
+    - service: Посев мазка с кожи
+      variants:
+        - condition: 10MIC+БФ+АМ
+          price: 4800
+        - condition: 12 АБ+БФ+АМ
+          price: 2800
+        - condition: 24 АБ+БФ+АМ
+          price: 3500
+        - condition: Без АБ
+          price: 1800
+    - group: Посев мазка со слизистых верхних дыхательных путей
+      services:
+        - service: Посев мазка со слизистых верхних дыхательных путей 10 MIC+ БФ
+          variants:
+            - condition: Ф
+              price: 4800
+        - service: Посев мазка со слизистых верхних дыхательных путей 12 АБ+ БФ
+          variants:
+            - condition: Ф
+              price: 2800
+        - service: Посев мазка со слизистых верхних дыхательных путей 24 АБ+ БФ
+          variants:
+            - condition: Ф
+              price: 3500
+    - group: Посев мазка со слизистых
+      services:
+        - service: Посев мазка со слизистых верхних дыхательных путей
+          variants:
+            - condition: Без АБ
+              price: 1800
+        - service: Посев мазка со слизистых наружных половых органов
+          variants:
+            - condition: 10MIC+БФ+АМ
+              price: 4800
+            - condition: 12 АБ+БФ+АМ
+              price: 2800
+            - condition: 24 АБ+БФ+АМ
+              price: 3500
+            - condition: Без АБ
+              price: 1800
+    - service: Посев материала на микрофлору, определение чувствительности к аб ОТ Птиц/ Рептилий/Лошадей (ПС)
+      price: 4500
+    - service: Посев молока
+      variants:
+        - condition: 10MIC+БФ+АМ
+          price: 4850
+        - condition: 12 АБ+БФ+АМ
+          price: 2800
+        - condition: 24 АБ+БФ+АМ
+          price: 3500
+        - condition: Без АБ
+          price: 1800
+    - service: Посев мочи
+      variants:
+        - condition: 10MIC +БФ+АМ
+          price: 4900
+        - condition: 12 АБ+БФ+АМ
+          price: 2900
+        - condition: 24 АБ+БФ+АМ
+          price: 3500
+        - condition: Без АБ
+          price: 1900
+    - group: Посев мочи на
+      services:
+        - service: Посев мочи на дрожжевые грибы
+          variants:
+            - condition: 8 АМ
+              price: 1800
+            - condition: Без АМ
+              price: 1550
+        - service: Посев мочи на микрофлору, определение чувствительности к антимикробным препаратам (ПС)
+          price: 3500
+    - service: Посев мочи с определением остаточной антимикробной активности (ОАА) на микрофлору (ПС)
+      price: 3800
+    - group: Посев на
+      services:
+        - service: Посев на глубокие микозы
+          variants:
+            - condition: 8 АМ
+              price: 1800
+            - condition: Без АМ
+              price: 1550
+        - service: Посев на грибы-дерматофиты
+          variants:
+            - condition: 8 АМ
+              price: 1800
+            - condition: БЕЗ АМ
+              price: 1550
+    - service: Посев офтальмологический
+      variants:
+        - condition: 10MIC+БФ+АМ
+          price: 4800
+        - condition: 12 АБ+БФ+АМ
+          price: 2800
+        - condition: 24 АБ+БФ+АМ
+          price: 3500
+        - condition: Без АБ
+          price: 1800
+    - service: Посев пунктата из грудной/брюшной полости
+      variants:
+        - condition: 10MIC+БФ+АМ
+          price: 4800
+        - condition: 12 АБ+БФ+АМ
+          price: 2800
+        - condition: 24 АБ+БФ+АМ
+          price: 3500
+        - condition: Без АБ
+          price: 1800
+    - service: Посев пункционной жидкости (плевральный выпот, перикардиальный выпот, перитонеальный выпот)(ПС)
+      price: 4000
+    - group: Посев раневого
+      services:
+        - service: Посев раневого отделяемого, мазках с поверхности кости (ПС)
+          price: 4000
+        - service: Посев раневого отделяемого/опер.материала
+          variants:
+            - condition: 10MIC+БФ+АМ
+              price: 4800
+            - condition: 12 АБ+БФ+АМ
+              price: 2800
+            - condition: 24 АБ+БФ+АМ
+              price: 3500
+            - condition: Без АБ
+              price: 1800
+        - service: Посев раневого отделяемого с кожи/биоптат кожи на микрофлору, определение чувствительности к аб (ПС)
+          price: 4000
+    - service: Посев секрета молочных желез на микрофлору, определение чувствительности к аб (ПС)
+      price: 4000
+    - service: Посев синовиальной жидкости
+      variants:
+        - condition: 10MIC+БФ+АМ
+          price: 4800
+        - condition: 12 АБ+БФ+АМ
+          price: 2800
+        - condition: 24 АБ+БФ+АМ
+          price: 3500
+        - condition: Без АБ
+          price: 1800
+    - service: Посев смыва с катетера на микрофлору, определение чувствительности к антимикробным препаратам (ПС)
+      price: 4000
+    - service: Посев спермы на микрофлору, определение чувствительности к антимикробным препаратам (ПС)
+      price: 4000
+    - service: Посев стоматологический
+      variants:
+        - condition: 10MIC+БФ+АМ
+          price: 4800
+        - condition: 12 АБ+БФ+АМ
+          price: 2800
+        - condition: 24 АБ+БФ+АМ
+          price: 3500
+        - condition: Без АБ
+          price: 1800
+    - group: Посев фекалий/помета на
+      services:
+        - service: Посев фекалий/помета на Campylobacter
+          variants:
+            - condition: 10MIC+БФ+АМ
+              price: 4900
+            - condition: 12 АБ+БФ+АМ
+              price: 3100
+            - condition: 24 АБ+БФ+АМ
+              price: 3900
+            - condition: Без АБ
+              price: 2000
+        - service: Посев фекалий/помета на Salmonella
+          variants:
+            - condition: 10MIC+БФ+АМ
+              price: 4800
+            - condition: 12 АБ+БФ+АМ
+              price: 2800
+            - condition: 24 АБ+БФ+АМ
+              price: 3500
+            - condition: Без АБ
+              price: 1800
+        - service: Посев фекалий/помета на дисбактериоз (количественный посев)
+          variants:
+            - condition: 10MIC+БФ+АМ
+              price: 5900
+            - condition: 12 АБ+БФ+АМ
+              price: 4100
+            - condition: 24 АБ+БФ+АМ
+              price: 4600
+            - condition: Без АБ
+              price: 2700
+        - service: Посев фекалий/помета на патогенов
+          variants:
+            - condition: 10MIC+БФ+АМ
+              price: 5700
+            - condition: 12 АБ+БФ+АМ
+              price: 3300
+            - condition: 24 АБ+БФ+АМ
+              price: 3800
+            - condition: Без АБ
+              price: 2700
+    - service: Птица в доме ПЦР
+      price: 3900
+    - group: Расширенная биохимия
+      services:
+        - service: Расширенная биохимия 24 CITO (AW1367) 1 час
+          price: 3300
+        - service: Расширенная биохимия 30 показателей
+          price: 2850
+    - service: Расширенный анализ крови (+лейкограмма+СОЭ+Ретикулоциты)
+      price: 1900
+    - group: Респираторные болезни
+      services:
+        - service: Респираторные болезни кошек ПЦР
+          price: 4000
+        - service: Респираторные болезни собак ПЦР
+          price: 4000
+    - service: Сальмонеллез ПЦР
+      price: 1200
+    - service: Соотношение CD4/CD8 (Оценка иммунного статуса при вирусном иммунодефиците ) у кошек (ПС)
+      price: 6500
+    - service: Стандартная биохимия 14 показателей
+      price: 1650
+    - service: Стоматологический профиль кошек ПЦР
+      price: 3900
+    - service: Тест на выявление клональности лимфоцитов (PCR for Antigen Receptor rearrangements, PARR) ПЦР (ПС)
+      price: 10000
+    - group: Токсоплазмоз Ig
+      services:
+        - service: Токсоплазмоз Ig G+ Ig M (ИФА) Н
+          variants:
+            - condition: Н
+              price: 4200
+        - service: Токсоплазмоз Ig G ИФА Н
+          price: 2000
+    - service: Токсоплазмоз ПЦР
+      price: 900
+    - service: Уреаплазмоз ПЦР
+      price: 900
+    - service: Хеликобактериоз ПЦР
+      price: 1200
+    - service: Хламидиоз Сем.Chlamydiaceae ПЦР
+      price: 900
+    - service: Цирковироз птиц ПЦР
+      price: 1600
+    - service: Цитомегаловирус ПЦР
+      price: 1500
+    - service: Чума плотоядных ПЦР
+      price: 1200
+    - service: Экспресс посев на дерматофиты
+      price: 1950
+    - service: Эрлихиоз ПЦР
+      price: 900
+- category: 📡 Инструментальная диагностика
+  services:
+    - service: Гастроскопия диагностическая
+      price: 11500
+    - group: Гастроскопия с извлечением инородного
+      services:
+        - service: Гастроскопия с извлечением инородного предмета из желудка/пищевода 1 категории
+          price: 15800
+        - service: Гастроскопия с извлечением инородного тела из желудка/пищевода 2 категории
+          price: 21000
+    - service: Гистологическое исследование эндоскопических биоптатов слизистой оболочки ЖКТ (ПС)
+      price: 7500
+    - group: Дентальный рентген
+      services:
+        - group: Дентальный рентген обзорный
+          services:
+            - service: Дентальный рентген обзорный (до 8 снимков, без учета наркоза)
+              price: 8200
+            - service: Дентальный рентген обзорный (каждый дополнительный снимок, без учета наркоза)
+              price: 700
+        - service: Дентальный рентген требуемой области (1 снимок, без учета наркоза)
+          price: 1300
+    - service: Колоноскопия диагностическая
+      price: 11500
+    - group: Риноскопия
+      services:
+        - group: Риноскопия
+          services:
+            - service: Риноскопия животному весом
+              variants:
+                - condition: от 1 до 10 кг
+                  price: 12500
+                - condition: от 11 до 30 кг
+                  price: 19500
+                - condition: от 30 кг
+                  price: 26000
+            - service: Риноскопия собаке, кошке с удалением опухолей, инородных предметов
+              variants:
+                - condition: до 10 кг
+                  price: 26000
+                - condition: свыше 30 кг
+                  price: 38000
+            - service: Риноскопия собаке, кошке с удалением опухолей, инородных предметовдо 30 кг
+              variants:
+                - condition: г до 30 кг
+                  price: 31500
+    - service: Цистоскопия животному весом
+      variants:
+        - condition: от 1 до 10 кг
+          price: 19500
+        - condition: от 11 до 30 кг
+          price: 23000
+        - condition: от 30 кг
+          price: 25500
+    - service: Эндоскопическое удаление лазером полипов, камней из мочевого пузыря животному
+      variants:
+        - condition: до 10 кг
+          price: 22500
+        - condition: от 30 кг
+          price: 33900
+    - service: Эндоскопическое удаление лазером полипов, камней из мочевого пузыря животномудо 30 кг
+      variants:
+        - condition: г до 30 кг
+          price: 28000
+- category: 💊 Терапия и манипуляции
+  services:
+    - service: RUMM блок (нейростимулятор)
+      price: 1500
+    - group: Блокада нерва (1–2 блокады)
+      services:
+        - group: Блокада
+          services:
+            - service: Блокада аурикулотемпорального нерва (1-2 блокады)
+              price: 1200
+            - service: Блокада большого аурикального нерва (1-2 блокады)
+              price: 1200
+            - service: Блокада верхнечелюстного нерва (1-2 блокады)
+              price: 1200
+            - service: Блокада межреберная (1-2 блокады)
+              price: 1200
+            - service: Блокада нижнечелюстного нерва (1-2 блокады)
+              price: 1200
+            - service: Блокада подбородочного нерва (1-2 блокады)
+              price: 1200
+            - service: Блокада подглазничного нерва (1-2 блокады)
+              price: 1200
+    - group: Блокада бедренного нерва
+      services:
+        - service: Блокада бедренного нерва, латеральный доступ (нейростимулятор)
+          price: 1500
+        - service: Блокада бедренного нерва, паховый доступ (нейростимулятор)
+          price: 1500
+    - group: Блокада
+      services:
+        - service: Блокада Новокаиновая циркулярная, проводниковая, инфильтрационная
+          price: 900
+        - service: Блокада плечевого сплетения (нейростимулятор)
+          price: 1500
+        - service: Блокада поясничного сплетения (нейростимулятор)
+          price: 1500
+        - service: Блокада Сакральная
+          price: 1000
+        - service: Блокада тройничного нерва под контролем УЗИ
+          price: 1500
+        - service: Блокада Шейная паравертебральная (нейростимулятор)
+          price: 1500
+    - group: Блокада седалищного нерва
+      services:
+        - service: Блокада седалищного нерва, латеральный доступ (нейростимулятор)
+          price: 1500
+        - service: Блокада седалищного нерва, парасакральный доступ (нейростимулятор)
+          price: 1500
+    - service: Блокады межфасциальные под контролем УЗИ (ESP/ QL/SP/ TAP block)
+      price: 1500
+    - service: Внутривенное введение через катетер
+      price: 300
+    - service: Инъекция подкожная или внутримышечная (без учета препаратов)
+      price: 250
+    - group: Массаж конечностей (до 2 конечностей)
+      services:
+        - service: Массаж конечностей (до 2 конечностей) 1 категории
+          price: 400
+        - service: Массаж конечностей (до 2 конечностей) 2 категории
+          price: 1200
+    - service: Наложение бинтовой повязки на катетер, после снятия катетера, после взятия крови
+      price: 150
+    - service: Постановка в/в катетера
+      price: 600
+    - group: Постановка мочевого катетера
+      services:
+        - service: Постановка мочевого катетера самки
+          price: 1950
+        - service: Постановка мочевого катетера самцы
+          price: 1350
+    - service: Проводниковая анестезия в ротовой полости (1 блокада)
+      price: 1350
+    - group: Промывание носослезного канала
+      services:
+        - service: Промывание носослезного канала 1 категории
+          price: 1900
+        - service: Промывание носослезного канала 2 категории
+          price: 3200
+        - service: Промывание носослезного канала 3 категории
+          price: 4500
+        - service: Промывание носослезного канала одного глаза
+          price: 1100
+    - service: Промывание/обработка полости
+      price: 400
+    - service: Ревизия, санация, дренирование гнойного очага при обширном поражении
+      variants:
+        - condition: Кошки и собаки до 10 кг.
+          price: 4400
+        - condition: Собаки свыше 10 кг.
+          price: 5500
+    - service: Ретробульбарная инъекция
+      price: 1900
+    - service: Санация НСП (чистка ушей) 2 уха
+      price: 500
+    - group: Санация НСП (чистка ушей) с
+      services:
+        - service: Санация НСП (чистка ушей) с лосьоном, 2 ушных прохода
+          price: 900
+        - service: Санация НСП (чистка ушей) с применением лосьона и лекарственного препарата, 2 ушных прохода
+          price: 900
+    - group: Санация
+      services:
+        - service: Санация полости антисептическими растворами
+          variants:
+            - condition: кошки
+              price: 1900
+            - condition: Собаки до 10 кг
+              price: 3200
+            - condition: собаки до 25 кг
+              price: 4000
+        - service: Санация полости антисептическими растворами собаки более 25 кг
+          price: 5000
+        - service: Санация (промывание) мочевого пузыря через катетер
+          price: 600
+        - service: Санация / чистка перианальных желез
+          price: 600
+    - service: Санация ротовой полости без полировки (без стоимости наркоза)
+      price: 3200
+    - group: Санация ротовой полости с полировкой эмали
+      services:
+        - service: Санация ротовой полости с полировкой эмали 1 категория (без учета анестезии)
+          price: 4400
+        - service: Санация ротовой полости с полировкой эмали 2 категория (без учета анестезии)
+          price: 6400
+        - service: Санация ротовой полости с полировкой эмали 3 категория (без учета анестезии)
+          price: 8300
+    - service: Снятие внутривенного катетера
+      price: 300
+    - service: Снятие уретрального катетера
+      price: 400
+    - service: Субконъюктивальная инъекция
+      price: 1100
+    - service: Эпидуральная блокада
+      price: 1000
+- category: 😴 Анестезия и обезболивание
+  services:
+    - group: Анестезия
+      services:
+        - service: Анестезия 1 категория сложности Животные без сопутствующих заболеваний
+          variants:
+            - condition: Кошки
+              price: 2000
+        - service: Анестезия 3 категория сложности Проведение длительных плановых операций
+          variants:
+            - condition: Кошки
+              price: 4500
+    - group: Анестезия 1 категория сложности Животные без сопутствующих заболеваний.
+      services:
+        - service: Анестезия 1 категория сложности Животные без сопутствующих заболеваний. Собака от 2,5
+          variants:
+            - condition: до 10 кг
+              price: 2100
+        - service: Анестезия 1 категория сложности Животные без сопутствующих заболеваний. Собака
+          variants:
+            - condition: от 10 до 20 кг
+              price: 3200
+            - condition: от 20 до 50 кг
+              price: 4500
+            - condition: свыше 50 кг
+              price: 5400
+        - service: Анестезия 1 категория сложности Животные без сопутствующих заболеваний. Собаки до 2.5 кг
+          price: 2300
+    - group: Анестезия 2 категория сложности Плановые, не длительные операции до 1 часа.
+      services:
+        - service: Анестезия 2 категория сложности Плановые, не длительные операции до 1 часа. Кошка
+          price: 2800
+        - service: Анестезия 2 категория сложности Плановые, не длительные операции до 1 часа. Собака более 50 кг
+          price: 6200
+        - service: Анестезия 2 категория сложности Плановые, не длительные операции до 1 часа. Собака
+          variants:
+            - condition: до 10 кг
+              price: 3400
+            - condition: до 20 кг
+              price: 4400
+            - condition: до 50 кг
+              price: 5300
+    - group: Анестезия 3 категория сложности Проведение длительных плановых операций. Собака
+      services:
+        - service: Анестезия 3 категория сложности Проведение длительных плановых операций. Собака до 2,5 кг
+          price: 4900
+        - service: Анестезия 3 категория сложности Проведение длительных плановых операций. Собака от 2,5
+          variants:
+            - condition: до 10 кг
+              price: 4700
+    - group: Анестезия 3 категория сложности Проведение длительных плановых
+      services:
+        - service: Анестезия 3 категория сложности Проведение длительных плановых операций. Собака
+          variants:
+            - condition: от 10 до 20 кг
+              price: 5300
+        - service: Анестезия 3 категория сложности Проведение длительных плановых операций, Собака
+          variants:
+            - condition: от 20 до 50 кг
+              price: 6600
+            - condition: свыше 50 кг
+              price: 7500
+    - group: Анестезия 4 категория сложности Проведение экстренных, внеплановых операций.
+      services:
+        - service: Анестезия 4 категория сложности Проведение экстренных, внеплановых операций. Кошка
+          price: 5800
+        - service: Анестезия 4 категория сложности Проведение экстренных, внеплановых операций. Собака
+          variants:
+            - condition: от 10 до 20 кг
+              price: 6700
+            - condition: от 20 до 50 кг
+              price: 7900
+            - condition: свыше 50 кг
+              price: 8800
+    - group: Анестезия 4 категория сложности Проведение экстренных, внеплановых операций. Собака
+      services:
+        - service: Анестезия 4 категория сложности Проведение экстренных, внеплановых операций. Собака до 2,5 кг
+          price: 6500
+        - service: Анестезия 4 категория сложности Проведение экстренных, внеплановых операций. Собака от 2,5
+          variants:
+            - condition: до 10 кг
+              price: 6200
+    - service: Бронхоальвеолярный лаваж (выполняется вместе с бронхоскопией) если отдельно плюс цена наркоза
+      price: 7000
+    - service: Вывих нижней челюсти, закрытое вправление (анестезия, расходные материалы оплачиваются дополнительно
+      price: 6500
+    - service: Глубокая очистительная клизма (без учета расходных материалов и наркоза)
+      price: 3300
+    - service: Зондирование желудка (без учета расходных материалов и анестезии)
+      price: 1100
+    - group: Кастрация самца крипторха (наркоз и р.м. отдельно)
+      services:
+        - service: Кастрация самца крипторха (наркоз и р.м. отдельно) кошка
+          variants:
+            - condition: до 3 кг
+              price: 7900
+            - condition: свыше 3 кг
+              price: 8400
+        - service: Кастрация самца крипторха (наркоз и р.м. отдельно) собака
+          variants:
+            - condition: от 5 до 10 кг
+              price: 11300
+            - condition: от 10 до 15 кг
+              price: 12400
+            - condition: от 15 до 20 кг
+              price: 15800
+            - condition: от 20 до 25 кг
+              price: 19700
+            - condition: от 25 до 30 кг
+              price: 21100
+            - condition: от 30 до 40 кг
+              price: 23100
+            - condition: от 40 до 50 кг
+              price: 25500
+            - condition: свыше 50 кг
+              price: 29300
+    - group: Кастрация самца крипторха (наркоз и р.м. отдельно) собака
+      services:
+        - service: Кастрация самца крипторха (наркоз и р.м. отдельно) собака до 2.5 кг
+          price: 7300
+        - service: Кастрация самца крипторха (наркоз и р.м. отдельно) собака от 2.5
+          variants:
+            - condition: до 5 кг
+              price: 8400
+    - group: Комбинированная анестезия+ газовый наркоз до 1 часа кошка
+      services:
+        - service: Комбинированная анестезия+ газовый наркоз до 1 часа кошка до З кг
+          variants:
+            - condition: г
+              price: 3500
+        - service: Комбинированная анестезия+ газовый наркоз до 1 часа кошка свыше З кг
+          variants:
+            - condition: г
+              price: 4500
+    - group: Комбинированная анестезия+ газовый наркоз до 1 часа
+      services:
+        - service: Комбинированная анестезия+ газовый наркоз до 1 часа кролик/хорек
+          variants:
+            - condition: к
+              price: 4500
+        - service: Комбинированная анестезия+ газовый наркоз до 1 часа собака
+          variants:
+            - condition: а от 5 до 10 кг
+              price: 5300
+            - condition: а от 10 до 15 кг
+              price: 5800
+            - condition: а от 15 до 20 кг
+              price: 6300
+            - condition: а от 20 до 25 кг
+              price: 6800
+            - condition: а от 25 до 30 кг
+              price: 7300
+            - condition: а от 30 до 40 кг
+              price: 7800
+            - condition: а от 40 до 50 кг
+              price: 8300
+            - condition: а свыше 50 кг
+              price: 9800
+        - service: Комбинированная анестезия+ газовый наркоз до 1 часа хомяк/крыса/мор.свинка
+          variants:
+            - condition: а
+              price: 3600
+    - group: Комбинированная анестезия+ газовый наркоз до 1 часа собака
+      services:
+        - service: Комбинированная анестезия+ газовый наркоз до 1 часа собака до 2.5 кг
+          variants:
+            - condition: г
+              price: 3500
+        - service: Комбинированная анестезия+ газовый наркоз до 1 часа собака от 2.5
+          variants:
+            - condition: 5 до 5 кг
+              price: 4500
+    - group: Комбинированная анестезия до 1 часа
+      services:
+        - service: Комбинированная анестезия до 1 часа кошка
+          variants:
+            - condition: до 3 кг
+              price: 2200
+            - condition: свыше 3 кг
+              price: 2500
+        - service: Комбинированная анестезия до 1 часа кролик/хорек
+          price: 3200
+        - service: Комбинированная анестезия до 1 часа собака
+          variants:
+            - condition: от 5 до 10 кг
+              price: 3600
+            - condition: от 10 до 15 кг
+              price: 4100
+            - condition: от 15 до 20 кг
+              price: 4500
+            - condition: от 20 до 25 кг
+              price: 5100
+            - condition: от 25 до 30 кг
+              price: 5600
+            - condition: от 30 до 40 кг
+              price: 6200
+            - condition: от 40 до 50 кг
+              price: 6600
+            - condition: свыше 50 кг
+              price: 7100
+        - service: Комбинированная анестезия до 1 часа хомяк/крыса/мор.свинка
+          price: 2700
+    - group: Комбинированная анестезия до 1 часа собака
+      services:
+        - service: Комбинированная анестезия до 1 часа собака до 2.5 кг
+          price: 2800
+        - service: Комбинированная анестезия до 1 часа собака от 2.5
+          variants:
+            - condition: до 5 кг
+              price: 3400
+    - group: Комбинированный остеосинтез
+      services:
+        - service: Комбинированный остеосинтез простой перелом (без учета расходных материалов и анестезии)
+          price: 20300
+        - service: Комбинированный остеосинтез сложный перелом (без учета расходных материалов и анестезии)
+          price: 23700
+    - service: Медикаментозное выведение из наркоза
+      variants:
+        - condition: Кошки
+          price: 1100
+    - group: Медикаментозное выведение из наркоза. собака
+      services:
+        - service: Медикаментозное выведение из наркоза. собака до 2,5 кг
+          price: 1400
+        - service: Медикаментозное выведение из наркоза. Собака от 2,5
+          variants:
+            - condition: до 10 кг
+              price: 1500
+    - service: Медикаментозное выведение из наркоза. собака
+      variants:
+        - condition: от 10 до 20 кг
+          price: 1900
+        - condition: от 20 до 50 кг
+          price: 2200
+        - condition: свыше 50 кг
+          price: 2400
+    - group: Обработка эрозии/язвы роговицы
+      services:
+        - group: Обработка эрозии/язвы роговицы под местной анестезией
+          services:
+            - service: Обработка эрозии/язвы роговицы под местной анестезией 1 категории
+              price: 1350
+            - service: Обработка эрозии/язвы роговицы под местной анестезией 2 категории
+              price: 2450
+            - service: Обработка эрозии/язвы роговицы под местной анестезией 3 категории
+              price: 3600
+    - service: Пластика ноздрей (анестезия, расходные материалы оплачиваются дополнительно)
+      variants:
+        - condition: Кошки
+          price: 20300
+        - condition: Собаки до 10 кг
+          price: 8400
+        - condition: Собаки до 25 кг
+          price: 9600
+    - service: Пластика ноздрей (анестезия, расходные материалы оплачиваются дополнительно). Собаки более 25 кг
+      price: 6700
+    - group: Стерилизация при беременности (ОГЭ) (поздний срок,
+      services:
+        - service: Стерилизация при беременности (ОГЭ) (поздний срок, р.м. и наркоз отдельно)
+          variants:
+            - condition: кошки до 4 кг
+              price: 11300
+            - condition: кошки свыше 4 кг
+              price: 13500
+        - service: Стерилизация при беременности (ОГЭ) (поздний срок, р.м. и наркоз отдельно) собака до 2.5 кг
+          price: 13500
+        - service: Стерилизация при беременности (ОГЭ) (поздний срок, р/м и наркоз отдельно) собака от 2.5
+          variants:
+            - condition: до 5 кг
+              price: 14000
+        - service: Стерилизация при беременности (ОГЭ) (поздний срок, р.м. и наркоз отдельно) собака
+          variants:
+            - condition: от 5 до 10 кг
+              price: 14500
+            - condition: от 10 до 15 кг
+              price: 16500
+            - condition: от 15 до 20 кг
+              price: 18500
+            - condition: от 20 до 25 кг
+              price: 21500
+            - condition: от 25 до 30 кг
+              price: 22000
+            - condition: от 30 до 40 кг
+              price: 24000
+            - condition: от 40 до 50 кг
+              price: 24000
+            - condition: свыше 50 кг
+              price: 28000
+    - group: Стерилизация при беременности (ОГЭ) (ранний срок, р.м. и наркоз отдельно)
+      services:
+        - service: Стерилизация при беременности (ОГЭ) (ранний срок, р.м. и наркоз отдельно) кошка
+          variants:
+            - condition: до 4 кг
+              price: 9500
+            - condition: свыше 4 кг
+              price: 10000
+        - service: Стерилизация при беременности (ОГЭ) (ранний срок, р.м. и наркоз отдельно) собака
+          variants:
+            - condition: от 5 до 10 кг
+              price: 12000
+            - condition: от 10 до 15 кг
+              price: 13500
+            - condition: от 15 до 20 кг
+              price: 15500
+            - condition: от 20 до 25 кг
+              price: 18000
+            - condition: от 25 до 30 кг
+              price: 19000
+            - condition: от 30 до 40 кг
+              price: 21500
+            - condition: от 40 до 50 кг
+              price: 22000
+            - condition: свыше 50 кг
+              price: 25000
+    - group: Стерилизация при беременности (ОГЭ) (ранний срок, р.м. и наркоз отдельно) собака
+      services:
+        - service: Стерилизация при беременности (ОГЭ) (ранний срок, р.м. и наркоз отдельно) собака до 2.5 кг
+          price: 9500
+        - service: Стерилизация при беременности (ОГЭ) (ранний срок, р.м. и наркоз отдельно) собака от 2.5
+          variants:
+            - condition: до 5 кг
+              price: 10000
+    - group: Стерилизация при пиометре/патологии (ОГЭ) (наркоз и р.м. отдельно)
+      services:
+        - service: Стерилизация при пиометре/патологии (ОГЭ) (наркоз и р.м. отдельно) кошка
+          variants:
+            - condition: до 4 кг
+              price: 12500
+            - condition: свыше 4 кг
+              price: 13000
+        - service: Стерилизация при пиометре/патологии (ОГЭ) (наркоз и р.м. отдельно) собака
+          variants:
+            - condition: от 5 до 10 кг
+              price: 14500
+            - condition: от 10 до 15 кг
+              price: 16500
+            - condition: от 15 до 20 кг
+              price: 18500
+            - condition: от 20 до 25 кг
+              price: 21500
+            - condition: от 25 до 30 кг
+              price: 22000
+            - condition: от 30 до 40 кг
+              price: 24000
+            - condition: от 40 до 50 кг
+              price: 25000
+            - condition: свыше 50 кг
+              price: 28000
+    - group: Стерилизация при пиометре/патологии (ОГЭ) (наркоз и р.м. отдельно) собака
+      services:
+        - service: Стерилизация при пиометре/патологии (ОГЭ) (наркоз и р.м. отдельно) собака до 2.5 кг
+          price: 12500
+        - service: Стерилизация при пиометре/патологии (ОГЭ) (наркоз и р.м. отдельно) собака от 2.5
+          variants:
+            - condition: до 5 кг
+              price: 13000
+    - service: Трахеотомия / трахеостома (анестезия, расходные материалы оплачиваются дополнительно)
+      variants:
+        - condition: Кошки
+          price: 3400
+        - condition: Собаки
+          price: 6000
+    - group: Удаление ресниц
+      services:
+        - service: Удаление ресниц под местной анестезией 1 категория (один глаз)
+          price: 400
+        - service: Удаление ресниц под местной анестезией 2 категория (один глаз)
+          price: 800
+    - service: Уретротомия (анестезия, расходные материалы оплачиваются дополнительно)
+      price: 18000
+    - service: Эзофагостома (анестезия, расходные материалы оплачиваются дополнительно)
+      variants:
+        - condition: Кошки
+          price: 6300
+        - condition: Собаки
+          price: 9500
+- category: 🔪 Хирургия
+  services:
+    - service: TPLO при разрыве крестовидной связки без расходных материалов
+      price: 57000
+    - service: V-пластика века
+      price: 8900
+    - group: Ампутация
+      services:
+        - service: Ампутация рудиментарных фаланг у
+          variants:
+            - condition: собак до 2-х недельного возраста
+              price: 1800
+            - condition: собак от 2-х до 4-х недельного возраста
+              price: 2800
+            - condition: собак свыше 4-х недельного возраста
+              price: 4500
+        - service: Ампутация хвоста у
+          variants:
+            - condition: собак свыше 2-х месячного возраста
+              price: 4500
+    - group: Ампутация хвоста у собак
+      services:
+        - service: Ампутация хвоста у собак до 10-ти дневного возраста
+          price: 1500
+        - service: Ампутация хвоста у собак от 10-ти дневного
+          variants:
+            - condition: до 2-х месячного возраста
+              price: 3200
+    - group: Артроскопия
+      services:
+        - service: Артроскопия диагностическая один сустав
+          price: 23000
+        - group: Артроскопия,
+          services:
+            - service: Артроскопия, малотравматичное операции на суставах
+              variants:
+                - condition: у собаки до 10 кг
+                  price: 29000
+                - condition: у собаки от 10 до 30 кг
+                  price: 34000
+            - service: Артроскопия, малотравматичные операции на суставах
+              variants:
+                - condition: у собаки свыше 30 кг
+                  price: 40000
+    - service: Аутоимплантация губчатой кости
+      price: 8400
+    - group: Блефаропластика
+      services:
+        - service: Блефаропластика 1 глаз
+          variants:
+            - condition: кошки и собаки до 10 кг
+              price: 7000
+            - condition: собаки от 10 до 20 кг
+              price: 8400
+            - condition: собаки от 20 до 30 кг
+              price: 9600
+            - condition: собаки от 30 до 50 кг
+              price: 10800
+            - condition: собаки свыше 50 кг
+              price: 11800
+        - service: Блефаропластика 2 глаза
+          variants:
+            - condition: кошки и собаки до 10 кг
+              price: 9600
+            - condition: собаки от 10 до 20 кг
+              price: 10800
+            - condition: собаки от 20 до 30 кг
+              price: 11800
+            - condition: собаки от 30 до 50 кг
+              price: 13500
+            - condition: собаки свыше 50 кг
+              price: 14600
+    - service: Высокая ампутация конечности
+      variants:
+        - condition: кошки и собаки до 10 кг
+          price: 15800
+        - condition: собаки от 10 до 20 кг
+          price: 18000
+        - condition: собаки от 20 до 30 кг
+          price: 20300
+        - condition: собаки от 30 до 50 кг
+          price: 24000
+        - condition: собаки свыше 50 кг
+          price: 25900
+    - service: Гастротомия
+      variants:
+        - condition: кошки и собаки до 10 кг
+          price: 15800
+        - condition: собаки до 25 кг
+          price: 16900
+    - service: Гастротомия собаки более 25 кг
+      price: 19200
+    - service: Гемитиреоидэктомия Операция по удалению одной доли щитовидной железы
+      price: 17800
+    - service: Гингивэктомия/гингивопластика (простая)
+      price: 1800
+    - group: Заворот желудка с
+      services:
+        - service: Заворот желудка с гастропексией и спленэктомией собаки более 25 кг
+          price: 27500
+        - service: Заворот желудка с гастропексией и спленэктомией
+          variants:
+            - condition: собаки до 25 кг
+              price: 25400
+        - service: Заворот желудка с гастротомией, спленэктомией,гастропексией собаки более 25 кг
+          price: 38000
+        - service: Заворот желудка с гастротомией, спленэктомией,гастропексией
+          variants:
+            - condition: собаки до 25 кг
+              price: 32000
+    - service: Иссечение новообразования уха с резекцией /пластикой слухового прохода
+      price: 15800
+    - group: Кастрация
+      services:
+        - service: Кастрация кота
+          variants:
+            - condition: до 4 кг
+              price: 4500
+            - condition: свыше 4 кг
+              price: 5500
+        - service: Кастрация самца. Грызуны (хомяки, крысы)
+          price: 3100
+        - service: Кастрация хорька/кролика
+          price: 5600
+    - group: Кастрация собаки
+      services:
+        - service: Кастрация собаки до 2,5 кг
+          price: 7500
+        - service: Кастрация собаки от 2,5
+          variants:
+            - condition: до 5 кг
+              price: 7500
+    - service: Кастрация
+      variants:
+        - condition: собаки от 5 до 10 кг
+          price: 9500
+        - condition: собаки от 10 до 15 кг
+          price: 11000
+        - condition: собаки от 15 до 20 кг
+          price: 13500
+        - condition: собаки от 20 до 25 кг
+          price: 16000
+        - condition: собаки от 25 до 30 кг
+          price: 19500
+        - condition: собаки от 30 до 40 кг
+          price: 21000
+        - condition: собаки от 40 до 50 кг
+          price: 24000
+        - condition: собаки свыше 50 кг
+          price: 26000
+    - service: Кожная пластика местными тканями (перекрестная Z, L, V-Y)
+      variants:
+        - condition: кошки и собаки до 10 кг
+          price: 7600
+        - condition: Собаки до 25 кг
+          price: 10100
+    - service: Кожная пластика местными тканями (перекрестная Z, L, V-Y) Собаки более 25 кг
+      price: 12400
+    - service: Коррегирующая остеотомия локтевой кости (кошки и
+      variants:
+        - condition: собаки до 5 кг).
+          price: 15800
+    - service: Низкая ампутация конечности
+      variants:
+        - condition: кошки и собаки до 10 кг
+          price: 11500
+        - condition: собаки от 10 до 20 кг
+          price: 14100
+        - condition: собаки от 20 до 30 кг
+          price: 17500
+        - condition: собаки от 30 до 50 кг
+          price: 19700
+        - condition: собаки свыше 50 кг
+          price: 22600
+    - service: Операция по расширению слухового канала при хроническом отите
+      variants:
+        - condition: Кошки и собаки до 10 кг.
+          price: 11300
+        - condition: Собаки от 10 до 25 кг.
+          price: 13500
+    - service: Операция по расширению слухового канала при хроническом отите. Собаки более 25 кг
+      price: 15800
+    - group: Орхифуникулоэктомия при
+      services:
+        - service: Орхифуникулоэктомия при новообразовании семенника
+          variants:
+            - condition: кошки и собаки до 10 кг
+              price: 7900
+            - condition: собаки от 10 до 20 кг
+              price: 9600
+            - condition: собаки от 20 до 30 кг
+              price: 12400
+            - condition: собаки от 30 до 50 кг
+              price: 14600
+            - condition: собаки свыше 50 кг
+              price: 17500
+        - service: Орхифуникулоэктомия при опухоли семенника с резекцией мошонки и лимфааденоктомией
+          variants:
+            - condition: собаки свыше 50 кг
+              price: 23700
+    - service: Орхифуникулоэктомия при опухоли семенника с резекцией мошонки и лимфааденоктомией кошки и собаки до
+      price: 11300
+    - group: Орхифуникулоэктомия при опухоли семенника с резекцией мошонки и лимфааденоктомией собаки от
+      services:
+        - service: Орхифуникулоэктомия при опухоли семенника с резекцией мошонки и лимфааденоктомией собаки от 10 до 20
+          price: 13500
+        - service: Орхифуникулоэктомия при опухоли семенника с резекцией мошонки и лимфааденоктомией собаки от 20 до 30
+          price: 18000
+        - service: Орхифуникулоэктомия при опухоли семенника с резекцией мошонки и лимфааденоктомией собаки от 30 до 50
+          price: 21400
+    - group: Пластика
+      services:
+        - service: Пластика век по Хотц-Цельсу (один глаз)
+          price: 11500
+        - service: Пластика мягкого неба (небной занавески)
+          variants:
+            - condition: Кошки и собаки до 10 кг.
+              price: 18000
+        - service: Пластика мягкого неба (небной занавески). Собаки более 10 кг
+          price: 11300
+        - service: Пластика препуция или вульвы
+          price: 10700
+        - service: Пластика хряща третьего века (один глаз)
+          price: 7600
+    - group: Пластика десны
+      services:
+        - service: Пластика десны в области одного зуба
+          price: 700
+        - service: Пластика десны (вся ротовая полость)
+          price: 3800
+    - service: Предоперационный профиль
+      price: 1850
+    - service: Промежностная грыжа с колонопексией, цистопексией и кастрацией собаки более 25 кг
+      price: 25900
+    - service: Промежностная грыжа с колонопексией, цистопексией и кастрацией
+      variants:
+        - condition: собаки до 25 кг
+          price: 21500
+    - service: Резекционная артропластика. Кошка
+      price: 16900
+    - service: Резекция отдела кишечника с формированием анастомоза
+      variants:
+        - condition: кошки
+          price: 15800
+        - condition: собаки до 25 кг
+          price: 15800
+    - service: Резекция отдела кишечника с формированием анастомоза собаки более 25 кг
+      price: 18000
+    - group: Резекция печени
+      services:
+        - group: Резекция печени
+          services:
+            - service: Резекция печени двух и более долей
+              variants:
+                - condition: кошки
+                  price: 18000
+                - condition: собаки до 25 кг
+                  price: 20900
+            - service: Резекция печени двух и более долей собаки более 25 кг
+              price: 23700
+            - service: Резекция печени краевая
+              variants:
+                - condition: кошки
+                  price: 13500
+                - condition: собаки
+                  price: 15800
+            - service: Резекция печени одной доли
+              variants:
+                - condition: кошки
+                  price: 15800
+                - condition: собаки до 25 кг
+                  price: 18000
+            - service: Резекция печени одной доли собаки более 25 кг
+              price: 20300
+    - service: Ринопластика кошка
+      price: 16900
+    - service: Сегментарная резекция желудка Операция по удалению участка стенки желудка
+      variants:
+        - condition: кошки
+          price: 16900
+        - condition: собаки до 25 кг
+          price: 19200
+    - service: Сегментарная резекция желудка Операция по удалению участка стенки желудка собаки более 25 кг
+      price: 23700
+    - service: Спленэктомия
+      variants:
+        - condition: кошки и собаки до 10 кг
+          price: 19200
+        - condition: собаки до 25 кг
+          price: 23700
+    - service: Спленэктомия собаки более 25 кг
+      price: 28500
+    - group: Стерилизация лапароскопическая двухпортовая
+      services:
+        - service: Стерилизация лапароскопическая двухпортовая кошкаОГЭ) (в т.ч. расх.мат.и преп.)
+          variants:
+            - condition: т.и преп.)
+              price: 12500
+            - condition: мат.и преп.)
+              price: 13500
+        - service: Стерилизация лапароскопическая двухпортовая собакаОГЭ) (в т.ч. расх.мат.и преп.)
+          variants:
+            - condition: асх.мат.и преп.)
+              price: 19000
+            - condition: расх.мат.и преп.)
+              price: 21500
+            - condition: расх.мат.и преп.)
+              price: 24500
+            - condition: расх.мат.и преп.)
+              price: 27000
+            - condition: расх.мат.и преп.)
+              price: 29000
+            - condition: расх.мат.и преп.)
+              price: 32000
+            - condition: расх.мат.и преп.)
+              price: 35000
+            - condition: х.мат.и преп.)
+              price: 37000
+    - group: Стерилизация лапароскопическая двухпортовая собака
+      services:
+        - service: Стерилизация лапароскопическая двухпортовая собака до 2.5 кг (ОГЭ) (в т.ч. расх.мат.и преп.)
+          price: 13500
+        - service: Стерилизация лапароскопическая двухпортовая собака от 2.5ОГЭ) (в т.ч. расх.мат.и преп.)
+          variants:
+            - condition: т.и преп.)
+              price: 16500
+    - group: Стерилизация лапароскопическая однопортовая
+      services:
+        - service: Стерилизация лапароскопическая однопортовая кошкаОГЭ) (в т.ч. расх.мат.и преп.)
+          variants:
+            - condition: т.и преп.)
+              price: 8500
+            - condition: мат.и преп.)
+              price: 9000
+        - service: Стерилизация лапароскопическая однопортовая собакаОГЭ) (в т.ч. расх.мат.и преп.)
+          variants:
+            - condition: асх.мат.и преп.)
+              price: 14500
+            - condition: расх.мат.и преп.)
+              price: 17000
+            - condition: расх.мат.и преп.)
+              price: 19500
+            - condition: расх.мат.и преп.)
+              price: 23000
+            - condition: расх.мат.и преп.)
+              price: 25000
+            - condition: расх.мат.и преп.)
+              price: 29000
+            - condition: расх.мат.и преп.)
+              price: 34000
+            - condition: х.мат.и преп.)
+              price: 37000
+    - group: Стерилизация лапароскопическая однопортовая собака
+      services:
+        - service: Стерилизация лапароскопическая однопортовая собака до 2.5 кг (ОГЭ) (в т.ч. расх.мат.и преп.)
+          price: 11500
+        - service: Стерилизация лапароскопическая однопортовая собака от 2.5ОГЭ) (в т.ч. расх.мат.и преп.)
+          variants:
+            - condition: т.и преп.)
+              price: 13000
+    - group: Стерилизация лапаротомная
+      services:
+        - service: Стерилизация лапаротомная кошкаОГЭ) (в т.ч. расход. материалы и препараты)
+          variants:
+            - condition: препараты)
+              price: 6500
+            - condition: и препараты)
+              price: 7500
+        - service: Стерилизация лапаротомная собакаОГЭ) (в т.ч. расход. материалы и препараты)
+          variants:
+            - condition: алы и препараты)
+              price: 11500
+            - condition: иалы и препараты)
+              price: 14500
+            - condition: иалы и препараты)
+              price: 17500
+            - condition: иалы и препараты)
+              price: 20500
+            - condition: иалы и препараты)
+              price: 24500
+            - condition: иалы и препараты)
+              price: 25500
+            - condition: иалы и препараты)
+              price: 28000
+            - condition: ы и препараты)
+              price: 31000
+        - service: Стерилизация лапаротомная хорька/кролика (ОГЭ) (в т.ч. расход. материалы и препараты)
+          price: 8400
+    - group: Стерилизация лапаротомная собака
+      services:
+        - service: Стерилизация лапаротомная собака до 2.5 кг (ОГЭ) (в т.ч. расход. материалы и препараты)
+          price: 9000
+        - service: Стерилизация лапаротомная собака от 2.5ОГЭ) (в т.ч. расход. материалы и препараты)
+          variants:
+            - condition: препараты)
+              price: 9500
+    - service: Стерилизация хорька/кролика лапароскопически (ОГЭ) (в т.ч. расх.мат.и преп.)
+      price: 10100
+    - service: Тотальное удаление наружного слухового прохода с остеотомией барабанного пузыря
+      variants:
+        - condition: Кошки
+          price: 18100
+    - service: Тотальное удаление наружного слухового прохода с остеотомией барабанного пузыря. Собаки
+      price: 21400
+    - service: Удаление лигатурных послеоперационных свищей
+      variants:
+        - condition: Кошки
+          price: 5500
+        - condition: Собаки до 10кг
+          price: 7300
+        - condition: Собаки до 25кг
+          price: 10800
+    - service: Удаление лигатурных послеоперационных свищей. Собаки более 25кг
+      price: 15500
+    - service: Уретростомия
+      variants:
+        - condition: Кошки
+          price: 18000
+        - condition: Собаки до 25кг
+          price: 15800
+    - service: Уретростомия. Собаки более 25кг
+      price: 18000
+    - group: Цистотомия без резекции
+      services:
+        - service: Цистотомия без резекции мочевого пузыря
+          variants:
+            - condition: Собаки от 10 до 25 кг.
+              price: 20300
+        - service: Цистотомия без резекции стенки мочевого пузыря
+          variants:
+            - condition: Кошки
+              price: 15200
+            - condition: Собаки до 10 кг.
+              price: 15200
+        - service: Цистотомия без резекции стенки мочевого пузыря. Собаки более 25
+          price: 23100
+    - group: Цистотомия
+      services:
+        - service: Цистотомия с резекцией стенки мочевого пузыря
+          variants:
+            - condition: Кошки и собаки до 10 кг.
+              price: 20500
+            - condition: Собаки от 10 до 25 кг.
+              price: 23000
+            - condition: Собаки свыше 25 кг.
+              price: 25500
+        - service: Цистотомия ушивание мочевого пузыря при разрыве
+          variants:
+            - condition: Кошки и собаки до 10 кг.
+              price: 7500
+            - condition: Собаки от 10 до 25 кг.
+              price: 10000
+            - condition: Собаки свыше 25 кг.
+              price: 15500
+    - group: Энтеротомия на одном/нескольких уровнях, удаление инородного
+      services:
+        - service: Энтеротомия на одном/нескольких уровнях, удаление инородного предмета
+          variants:
+            - condition: Собаки от 10 до 25 кг
+              price: 22000
+            - condition: Собаки от 25 кг.
+              price: 25400
+        - service: Энтеротомия на одном/нескольких уровнях, удаление инородного тела
+          variants:
+            - condition: Кошки и собаки до 10 кг
+              price: 17500
+    - service: Эпизиотомия с удалением новообразования влагалища / резекцией пролапса стенки влагалища
+      variants:
+        - condition: Кошки
+          price: 3500
+    - group: Эпизиотомия с удалением новообразования влагалища / резекцией пролапса стенки влагалища. Собаки
+      services:
+        - service: Эпизиотомия с удалением новообразования влагалища / резекцией пролапса стенки влагалища. Собаки боле
+          price: 8500
+        - service: Эпизиотомия с удалением новообразования влагалища / резекцией пролапса стенки влагалища. Собаки до 1
+          price: 4000
+        - service: Эпизиотомия с удалением новообразования влагалища / резекцией пролапса стенки влагалища. Собаки от 1
+          price: 6500
+- category: 🏥 Стационар и мониторинг
+  services:
+    - service: Глюкозометрия мониторинг (в условиях стационара от 2 до 20 замеров, без учета тест-полоски)
+      price: 1100
+    - group: Стационар
+      services:
+        - service: Стационар 1 категория
+          variants:
+            - condition: кошки
+              price: 6500
+            - condition: от 10 до 20 кг
+              price: 9500
+            - condition: от 20 до 30 кг
+              price: 10500
+            - condition: собаки до 5 кг
+              price: 7500
+            - condition: собаки от 5 до 10 кг
+              price: 8500
+        - service: Стационар 2 категория
+          variants:
+            - condition: кошки
+              price: 11500
+            - condition: от 10 до 20 кг
+              price: 14500
+            - condition: от 20 до 30 кг
+              price: 20000
+            - condition: собаки до 5 кг
+              price: 12500
+            - condition: собаки от 5 до 10 кг
+              price: 13500
+        - service: Стационар 3 категория
+          variants:
+            - condition: кошки
+              price: 24000
+            - condition: от 10 до 20 кг
+              price: 29000
+            - condition: от 20 до 30 кг
+              price: 30000
+            - condition: собаки до 5 кг
+              price: 25000
+            - condition: собаки от 5 до 10 кг
+              price: 28000
+    - group: Стационар в кислородной камере от
+      services:
+        - service: Стационар в кислородной камере от 0 до 12 часов
+          price: 900
+        - service: Стационар в кислородной камере от 12 до 24 часов
+          price: 1600
+    - service: Стационарный профиль
+      price: 1800
+    - group: СТАЦИОНАР/"СЕРАЯ ЗОНА" Кошка от
+      services:
+        - service: СТАЦИОНАР/"СЕРАЯ ЗОНА" Кошка от 0 до 12 часов
+          price: 600
+        - service: СТАЦИОНАР/"СЕРАЯ ЗОНА" Кошка от 12 до 24 часов
+          price: 1000
+    - group: СТАЦИОНАР/"СЕРАЯ ЗОНА" Собакаот
+      services:
+        - service: СТАЦИОНАР/"СЕРАЯ ЗОНА" Собакаот 12 до 24 часов
+          variants:
+            - condition: 24 часов
+              price: 2000
+            - condition: 12 до 24 часов
+              price: 2500
+            - condition: т 12 до 24 часов
+              price: 3000
+            - condition: т 12 до 24 часов
+              price: 3500
+        - service: СТАЦИОНАР/"СЕРАЯ ЗОНА" Собакаот 0 до 12 часов
+          variants:
+            - condition: о 12 часов
+              price: 700
+    - service: СТАЦИОНАР/"СЕРАЯ ЗОНА" Собакадо 12 часов
+      variants:
+        - condition: 0 кг до 12 часов
+          price: 900
+    - service: УЗИ (ультразвуковое исследование) КИШЕЧНИКА в динамике (в стационаре)
+      price: 1500
+- category: 🥣 Питание / диетология
+  services:
+    - service: 1 корм/монопродукт из списка – принимается как дополнительный к списку, либо минимально 4 шт
+      price: 850
+    - service: 4 корма/монопродукта из списка
+      price: 1900
+    - service: 8 кормов/монопродуктов из списка
+      price: 2400
+    - service: 16 кормов/монопродуктов из списка
+      price: 2900
+    - group: Кормление через эзофагостому
+      services:
+        - service: Кормление через эзофагостому (1 кормление)
+          price: 500
+        - service: Кормление через эзофагостому (в течение 12 часов, до 4 раз)
+          price: 1550
+    - service: Корректировка Рациона Диетологом
+      price: 1000
+    - service: Пищевая дезадаптация 24 монопродукта
+      price: 11200
+    - group: Принудительное кормление пациента
+      services:
+        - service: Принудительное кормление пациента (1 кормление)
+          price: 500
+        - service: Принудительное кормление пациента (в течение 12 часов, до 4 раз)
+          price: 1550
+    - service: Составление Рациона Диетологом
+      price: 1500
+- category: 🐾 Зоогостиница
+  services:
+    - group: ЗООГОСТИНИЦА
+      services:
+        - service: ЗООГОСТИНИЦА Грызуны от 0 до 24 часов
+          price: 400
+        - service: ЗООГОСТИНИЦА Птица от 0 до 24 часов
+          price: 300
+        - service: ЗООГОСТИНИЦА Собакадо 12 часов
+          variants:
+            - condition: 0 кг до 12 часов
+              price: 800
+    - group: ЗООГОСТИНИЦА Кошка от
+      services:
+        - service: ЗООГОСТИНИЦА Кошка от 0 до 12 часов
+          price: 500
+        - service: ЗООГОСТИНИЦА Кошка от 12 до 24 часов
+          price: 700
+    - group: ЗООГОСТИНИЦА Собакаот
+      services:
+        - service: ЗООГОСТИНИЦА Собакаот 12 до 24 часов
+          variants:
+            - condition: 24 часов
+              price: 2000
+            - condition: 12 до 24 часов
+              price: 2000
+            - condition: т 12 до 24 часов
+              price: 2000
+            - condition: т 12 до 24 часов
+              price: 1700
+            - condition: о 24 часов
+              price: 3500
+        - service: ЗООГОСТИНИЦА Собакаот 0 до 12 часов
+          variants:
+            - condition: о 12 часов
+              price: 600
+            - condition: о 12 часов
+              price: 900
+- category: 🕊️ Ритуальные услуги
+  services:
+    - service: Видеозапись индивидуальной кремации
+      price: 2800
+    - group: Вскрытие
+      services:
+        - service: Вскрытие абсцесса, гематомы, лимфоэкстравазатов
+          variants:
+            - condition: Кошки
+              price: 1700
+            - condition: Собаки до 25 кг
+              price: 2300
+        - service: Вскрытие и ушивание отогематомы
+          variants:
+            - condition: Собаки
+              price: 9600
+    - group: Вскрытие абсцесса, гематомы, лимфоэкстравазатов. Собаки
+      services:
+        - service: Вскрытие абсцесса, гематомы, лимфоэкстравазатов. Собаки более 25 кг
+          price: 2700
+        - service: Вскрытие абсцесса, гематомы, лимфоэкстравазатов. Собаки и
+          variants:
+            - condition: кошки до 10 кг
+              price: 1700
+    - group: Вскрытие гематомы ушной раковины с
+      services:
+        - service: Вскрытие гематомы ушной раковины с постановкой дренажа
+          variants:
+            - condition: Кошки и собаки до 10 кг
+              price: 3300
+            - condition: Собаки от 10 до 25 кг.
+              price: 4500
+        - service: Вскрытие гематомы ушной раковины с постановкой дренажа. Собаки более 25 кг
+          price: 5600
+        - service: Вскрытие гематомы ушной раковины с прошиванием
+          variants:
+            - condition: кошки и собаки до 10 кг.
+              price: 5100
+            - condition: Собаки от 10 до 25 кг.
+              price: 7300
+        - service: Вскрытие гематомы ушной раковины с прошиванием. Собаки более 25 кг
+          price: 8400
+    - group: Индивидуальная кремация
+      services:
+        - service: Индивидуальная кремация грызуны (хомяки, крысы, мыши)
+          price: 9300
+        - service: Индивидуальная кремация кошки,кролики и
+          variants:
+            - condition: собаки до 5 кг
+              price: 9300
+    - service: Индивидуальная кремация
+      variants:
+        - condition: кошки и собаки от 5 до 10 кг
+          price: 9800
+        - condition: собаки от 10 до 20 кг
+          price: 11600
+        - condition: собаки от 20 до 30 кг
+          price: 14300
+        - condition: собаки от 30 до 50 кг
+          price: 16600
+        - condition: собаки свыше 50 кг
+          price: 18300
+    - group: Общая кремация
+      services:
+        - service: Общая кремация грызуны (хомяки, крысы, мыши)
+          price: 1500
+        - service: Общая кремация кошки, кролики и
+          variants:
+            - condition: собаки до 5 кг
+              price: 4300
+    - service: Общая кремация
+      variants:
+        - condition: кошки и собаки от 5 до 10 кг
+          price: 4900
+        - condition: собаки от 10 до 20 кг
+          price: 7000
+        - condition: собаки от 20 до 30 кг
+          price: 8200
+        - condition: собаки от 30 до 50 кг
+          price: 9200
+        - condition: собаки свыше 50 кг
+          price: 11300
+    - service: Патологоанатомическое вскрытие
+      price: 24000
+    - service: Фронтотомия (вскрытие лобных пазух)
+      price: 7000
+    - group: Эвтаназия
+      services:
+        - service: Эвтаназия грызуны - хомяки, крысы, мыши (в т.ч. расх.мат.и преп.)
+          price: 1100
+        - service: Эвтаназия кошки,кролики ив т.ч. расх.мат.и преп.)
+          variants:
+            - condition: расх.мат.и преп.)
+              price: 3100
+    - service: Эвтаназияв т.ч. расх.мат.и преп.)
+      variants:
+        - condition: 10 кг (в т.ч. расх.мат.и преп.)
+          price: 3800
+        - condition: в т.ч. расх.мат.и преп.)
+          price: 4400
+        - condition: в т.ч. расх.мат.и преп.)
+          price: 5100
+        - condition: в т.ч. расх.мат.и преп.)
+          price: 5700
+        - condition: ч. расх.мат.и преп.)
+          price: 7100
+- category: 📄 Сервисные / документы
+  services:
+    - service: 17он-Прогестерон
+      price: 2500
+    - service: а-Амилаза
+      price: 450
+    - service: Анаплазмоз (мазок на кровепаразиты)
+      price: 900
+    - service: Анастезия Эпидуральная
+      price: 1400
+    - service: Аренда котоловкисутки
+      price: 700
+    - service: Аскаридоз Ig G ИФА
+      price: 2600
+    - service: Аспирация апокриновой кисты
+      price: 2500
+    - group: Аспирация жидкости из полости
+      services:
+        - service: Аспирация жидкости из полости до 100 мл
+          price: 400
+        - service: Аспирация жидкости из полости от 100 до 1000 мл
+          price: 800
+        - service: Аспирация жидкости из полости свыше 1000 мл
+          price: 1100
+    - service: Беременность и кошка в доме (ИФА)
+      price: 6400
+    - service: Биопсия Органа/Образования в Брюшной полости под Контролем УЗИ
+      price: 2200
+    - service: Блефарорафия (1 глаз)
+      price: 4500
+    - service: Болезнь Ньюкасла
+      price: 1200
+    - service: Болюсная Химиотерапия 1 сеанс (без стоимости препаратов)
+      price: 4100
+    - service: Бронхоскопия/Ларингоскопия/Трахеоскопия животному весом
+      variants:
+        - condition: от 30 кг
+          price: 23000
+    - service: Бронхоскопия/Ларингоскопия/Трахеоскопия
+      variants:
+        - condition: от 1 до 10 кг
+          price: 11000
+        - condition: от 11 до 30 кг
+          price: 17000
+    - service: Бруцеллез Ig G (ИФА)
+      price: 2600
+    - service: Вагинальная цитология (ПС)
+      price: 1500
+    - group: Введение
+      services:
+        - service: Введение Биопрепарата
+          price: 400
+        - service: Введение микрочипа
+          price: 1300
+    - service: Вегетативные формы простейших
+      price: 950
+    - service: Вентральная буллотомия билатерально
+      variants:
+        - condition: кошки
+          price: 25100
+    - service: Ветстандарт 22 показателя
+      price: 2100
+    - service: Ветстандарт 22 показателя CITO Н
+      price: 2600
+    - service: Взятие биопсии мягких тканей (ТИАБ/отечаток/аспират)
+      price: 1100
+    - service: Взятие биопсийного материала(кожа)
+      price: 1100
+    - service: Взятие мазка, соскоба, смывов
+      price: 550
+    - service: Видеоотоскопия животному весом
+      variants:
+        - condition: от 1 до 10 кг
+          price: 10500
+        - condition: от 11 до 30 кг
+          price: 12500
+        - condition: от 30 кг
+          price: 18000
+    - service: Визуальная диагностика 1 проекция
+      price: 1400
+    - group: Визуальная диагностика с контрастом,
+      services:
+        - service: Визуальная диагностика с контрастом, 4-6 проекций
+          price: 5500
+        - service: Визуальная диагностика с контрастом, 7-10 проекций
+          price: 9600
+    - group: Вирусная лейкемия кошек (FeLV)
+      services:
+        - group: Вирусная лейкемия кошек Ag
+          services:
+            - service: Вирусная лейкемия кошек Ag (ИФА)
+              price: 2400
+            - service: Вирусная лейкемия кошек Ag (ИХ)
+              price: 1850
+        - service: Вирусная лейкемия кошек. Определение антигена р27 FeLv (тИФА) ВЮ
+          price: 4000
+    - group: Вирусный перитонит/коронавирус кошек Ig G
+      services:
+        - service: Вирусный перитонит/коронавирус кошек Ig G ИФА
+          price: 2400
+        - service: Вирусный перитонит/коронавирус кошек Ig G (определение титра ИФА)
+          price: 3700
+    - service: Вирусный перитонит кошек Ag ИХ
+      price: 1850
+    - group: Внеочаговый остеосинтез
+      services:
+        - service: Внеочаговый остеосинтез при переломе нижней челюсти
+          variants:
+            - condition: Собаки до 10 кг.
+              price: 15800
+        - service: Внеочаговый остеосинтез спицами / пластиной при переломе челюсти. Кошки
+          price: 15800
+        - service: Внеочаговый остеосинтез спицами / пластиной при переломе челюсти
+          variants:
+            - condition: Собаки до 10 кг.
+              price: 16900
+            - condition: Собаки от 10 до 25 кг.
+              price: 18000
+            - condition: Собаки от 25 кг.
+              price: 20300
+    - service: Внесение номера микрочипа в базу данных
+      price: 1900
+    - group: Инфузионная терапия с помощью инфузомата
+      services:
+        - group: Внутривенная инфузионная терапия
+          services:
+            - service: Внутривенная инфузионная терапия (за 1 час)
+              price: 700
+            - service: Внутривенная инфузионная терапия с помощью инфузомата до 1 часа
+              price: 800
+        - group: Инфузионная терапия с помощью инфузомата от
+          services:
+            - service: Инфузионная терапия с помощью инфузомата от 0 до 3 часов
+              price: 1900
+            - service: Инфузионная терапия с помощью инфузомата от 3 до 6 часов
+              price: 3100
+            - service: Инфузионная терапия с помощью инфузомата от 6 до 12 часов
+              price: 3800
+            - service: Инфузионная терапия с помощью инфузомата от 12 до 24 часов
+              price: 4500
+    - service: Внутривенная химиотерапия 1 сеанс (без стоимости препаратов)
+      price: 4100
+    - service: Внутривенное введение через бабочку/иглу
+      price: 600
+    - service: Внутрикожный косметический шов до 2 см
+      price: 900
+    - group: Внутрикожный косметический шов от
+      services:
+        - service: Внутрикожный косметический шов от 2 до 3 см
+          price: 1500
+        - service: Внутрикожный косметический шов от 3 до 5 см
+          price: 2800
+        - service: Внутрикожный косметический шов от 5 до 10 см
+          price: 3900
+    - service: Внутрипузырная химиотерапия 1 сеанс (без стоимости препаратов)
+      price: 4100
+    - service: Возврат дубликата гистологического/цитологического препарата
+      price: 800
+    - group: Вправление глазного яблока
+      services:
+        - group: Вправление глазного яблока
+          services:
+            - service: Вправление глазного яблока 2 категории
+              price: 12200
+            - service: Вправление глазного яблока изменить на вправление глазного яблока 1 категории
+              price: 9600
+        - service: Вправление глазного яблока
+          price: 7900
+    - group: Вправление прямой кишки с
+      services:
+        - service: Вправление прямой кишки с колонопексией. Кошки
+          price: 15800
+        - service: Вправление прямой кишки с колонопексией
+          variants:
+            - condition: кошки и собаки до 10 кг
+              price: 15800
+        - service: Вправление прямой кишки с колонопексией собаки более 10 кг
+          price: 18000
+        - service: Вправление прямой кишки с наложением временного кисетного шва
+          price: 7300
+    - service: Выезд ветеринарного врача для регистрации справки на выезд за границу
+      price: 7600
+    - service: Вызов ветеринарного врача
+      price: 2000
+    - group: Выкармливание подсосных котят и щенков
+      services:
+        - service: Выкармливание подсосных котят и щенков до 3 штук (в возрасте от 1й)
+          variants:
+            - condition: о 14 дней)
+              price: 3800
+        - service: Выкармливание подсосных котят и щенков от 4 до 7 штук (возраст от 1й)
+          variants:
+            - condition: о 14 дней)
+              price: 7200
+    - service: Гельминты и простейшие ИФА
+      price: 7500
+    - service: Гемоплазма (Candidatus Mycoplasma haemominutum) (количественный тест) ВЮ
+      price: 2500
+    - service: Гемотрансфузия (без стоимости крови и расходных материалов)
+      price: 3000
+    - service: Герпесвирус Ig G ИФА
+      price: 1800
+    - group: Гигиеническая обработка животного от
+      services:
+        - service: Гигиеническая обработка животного от 2х до 10 раз в сутки
+          price: 800
+        - service: Гигиеническая обработка животного от 11 до 20 раз в сутки
+          price: 1500
+    - service: Гигиенический уход животного
+      price: 300
+    - group: Гистологическое исследование
+      services:
+        - service: Гистологическое исследование
+          price: 3500
+        - group: Гистологическое исследование
+          services:
+            - service: Гистологическое исследование биоптатов неопухолевой кожи (дерматопатология) (ПС)
+              price: 8000
+            - service: Гистологическое исследование (доп. локализация). Приготовление препаратов и описательная часть (ПС)
+              price: 3500
+            - service: Гистологическое исследование костного материала
+              price: 3900
+            - service: Гистологическое исследование молочных желез. Приготовление препаратов и описательная часть (ПС)
+              price: 7500
+            - service: Гистологическое исследование (одна локализация, включая приложенные лимфатические узлы) (ПС)
+              price: 7500
+    - service: Гликозированный гемоглобин
+      price: 2800
+    - service: Глюкозометрия
+      price: 350
+    - group: Группа крови
+      services:
+        - service: Группа крови кошек (ИХ)
+          price: 4200
+        - service: Группа крови собак DEA 1 (ИХ)
+          price: 4200
+    - service: Дексаметазоновая проба (кортизол – 3 пробы)
+      price: 3650
+    - service: Дерматофиты
+      price: 700
+    - service: Диабетический профиль
+      price: 1900
+    - group: Диагностика
+      services:
+        - service: Диагностика вирусного лейкоза (определение антигена FeLV p27, ИФА) ПС
+          price: 3500
+        - service: Диагностика коронавирусной инфекции (определение уровня IgG к Feline coronavirus, ИФА) ПС
+          price: 4500
+    - group: Диагностика брюшной полости (лапароскопия / лапаротомия)
+      services:
+        - group: Диагностическая
+          services:
+            - service: Диагностическая лапароскопия
+              variants:
+                - condition: до 10 кг
+                  price: 20000
+                - condition: от 11 до 30 кг
+                  price: 26000
+                - condition: от 30 кг
+                  price: 31000
+            - service: Диагностическая лапаротомия
+              variants:
+                - condition: кошки
+                  price: 11500
+                - condition: собаки до 5 кг.
+                  price: 11300
+                - condition: собаки до 10 кг
+                  price: 11500
+                - condition: собаки до 25 кг
+                  price: 12500
+            - service: Диагностическая лапаротомия собаки более 25 кг
+              price: 13500
+    - service: Диализ перианальных желез
+      price: 900
+    - group: Диафрагмальная грыжа
+      services:
+        - service: Диафрагмальная грыжа кошки
+          price: 19200
+        - service: Диафрагмальная грыжа собаки более 25 кг
+          price: 23700
+    - service: Диафрагмальная грыжа
+      variants:
+        - condition: кошки и собаки до 10 кг
+          price: 19200
+        - condition: собаки до 25 кг
+          price: 22600
+    - group: Дирофиляриоз
+      services:
+        - service: Дирофиляриоз Ag ИХ
+          price: 1850
+        - service: Дирофиляриоз (мазок на кровепаразиты)
+          price: 950
+    - service: Дисбактериоз (количественное с подтитровкой к аб) Ш (до 14 суток)
+      price: 2100
+    - group: Дополнительное окрашивание на
+      services:
+        - service: Дополнительное окрашивание на глубокие микозы (ШИК-реакция)
+          price: 1200
+        - service: Дополнительное окрашивание на микобактерии (по методу Циль-Нильсен)
+          price: 1200
+    - service: Доставка
+      price: 300
+    - service: Дренирование полости раны
+      price: 650
+    - group: Желчные кислоты –
+      services:
+        - service: Желчные кислоты – 1 проба
+          price: 1600
+        - service: Желчные кислоты – 2 пробы
+          price: 3000
+    - service: Забор венозной крови
+      price: 500
+    - service: Забор венозной крови на дому
+      price: 1000
+    - service: Забор донорской крови до 50 мл
+      price: 2600
+    - service: Забор капиллярной крови
+      price: 300
+    - service: Забор мочи цистоцентезом под контролем УЗИ
+      price: 1800
+    - service: Заворот желудка с гастропексией собаки более 25 кг
+      price: 23100
+    - service: Заворот желудка с гастропексией
+      variants:
+        - condition: собаки до 25 кг
+          price: 19200
+    - group: Закрытие
+      services:
+        - service: Закрытие расщепленного неба Устранение разрыва, отверстия в средней части нёба
+          variants:
+            - condition: Кошки
+              price: 4500
+            - condition: Собаки до 25 кг
+              price: 6700
+        - service: Закрытие расщепленного неба Устранение разрыва, отверстия в средней части нёба. Собаки более 25 кг
+          price: 7600
+        - service: Закрытие расщепленного неба Устранение разрыва, отверстия в средней части нёб
+          variants:
+            - condition: Собаки до 10 кг
+              price: 5600
+    - group: Закрытие ротоносовой фистулы Устранение патологического отверстия
+      services:
+        - service: Закрытие ротоносовой фистулы Устранение патологического отверстия 1 категории
+          price: 4500
+        - service: Закрытие ротоносовой фистулы Устранение патологического отверстия 2 категории
+          price: 6500
+        - service: Закрытие ротоносовой фистулы Устранение патологического отверстия 3 категории
+          price: 7300
+    - service: Запись на цифровой носитель
+      price: 400
+    - group: Извлечение
+      services:
+        - service: Извлечение инородного предмета из препуция
+          price: 3500
+        - service: Извлечение клещей (до 3 штук)
+          price: 450
+        - service: Извлечение фрагмента зуба
+          price: 1100
+    - group: Извлечение инородного предмета из роговицы
+      services:
+        - service: Извлечение инородного предмета из роговицы Из глубоких слоев
+          price: 7300
+        - service: Извлечение инородного предмета из роговицы Из поверхностных слоев
+          price: 4500
+    - service: Изготовление гистологического препарата
+      price: 2500
+    - service: Измерение артериального давления (Тонометрия ) 1 измерение
+      price: 550
+    - group: Измерение артериального давления (Тонометрия) от
+      services:
+        - service: Измерение артериального давления (Тонометрия) от 2 до 8 раз за сутки
+          price: 1300
+        - service: Измерение артериального давления (Тонометрия) от 9 до 15 раз
+          price: 2100
+    - service: Измерение гематокрита CITO
+      price: 250
+    - service: Ингаляция небулайзером/спейсером до 10 минут( без учёта препарата)
+      price: 400
+    - service: Инфузионная химиотерапия 1 сеанс (без стоимости препаратов)
+      price: 4100
+    - service: Иньекция МИКРОДЕРМ 1 ампула
+      price: 1000
+    - group: Иссечение опухоли кожи
+      services:
+        - group: Иссечение опухоли кожи
+          services:
+            - service: Иссечение опухоли кожи более 25 см
+              price: 15800
+            - service: Иссечение опухоли кожи до 1 см
+              price: 3400
+        - group: Иссечение опухоли кожи от
+          services:
+            - service: Иссечение опухоли кожи от 1 до 2 см
+              price: 4100
+            - service: Иссечение опухоли кожи от 2 до 5 см
+              price: 5600
+            - service: Иссечение опухоли кожи от 5 до 7 см
+              price: 6700
+            - service: Иссечение опухоли кожи от 7 до 10 см
+              price: 8400
+            - service: Иссечение опухоли кожи от 10 до 15 см
+              price: 10100
+            - service: Иссечение опухоли кожи от 15 до 25 см
+              price: 12400
+    - group: Иссечение опухоли мягких тканей
+      services:
+        - group: Иссечение опухоли мягких тканей
+          services:
+            - service: Иссечение опухоли мягких тканей более 25 см
+              price: 20300
+            - service: Иссечение опухоли мягких тканей до 1 см
+              price: 5100
+        - group: Иссечение опухоли мягких тканей от
+          services:
+            - service: Иссечение опухоли мягких тканей от 1 до 2 см
+              price: 6200
+            - service: Иссечение опухоли мягких тканей от 2 до 5 см
+              price: 7900
+            - service: Иссечение опухоли мягких тканей от 5 до 7 см
+              price: 9700
+            - service: Иссечение опухоли мягких тканей от 7 до 10 см
+              price: 11300
+            - service: Иссечение опухоли мягких тканей от 10 до 15 см
+              price: 12400
+            - service: Иссечение опухоли мягких тканей от 15 до 25 см
+              price: 14100
+    - group: Иссечение
+      services:
+        - service: Иссечение осложнённой грыжи (ущемление внутренних органов в грыжевом кольце). Кошки и собаки до 10 к
+          price: 6900
+        - service: Иссечение осложнённой грыжи (ущемление внутренних органов в грыжевом кольце)
+          variants:
+            - condition: Собаки от 10 до 25 кг.
+              price: 9100
+            - condition: Собаки от 25 кг.
+              price: 12700
+        - service: Иссечение пупочной грыжи (кошка/собака)
+          price: 5600
+    - group: Исследование
+      services:
+        - service: Исследование выпотных жидкостей (плевральной, перикардиальной, перитонеальной (цитология) (ПС)
+          price: 3500
+        - service: Исследование зрачкомоторных рефлексов
+          price: 700
+        - service: Исследование конкрементов (уролитов)
+          price: 900
+        - service: Исследование костного мозга (цитология)(ПС)
+          price: 5500
+        - service: Исследование синовиальной жидкости (цитология)(ПС)
+          price: 3000
+        - service: Исследование транстрахеального аспирата/бронхоальвеолярного лаважа, носовой полости (цитология) (ПС)
+          price: 3500
+    - service: Калицивироз кошек Ig G РИФ
+      price: 3250
+    - service: Качественное определение меди в печени (без гистологического исследования) (ПС)
+      price: 2500
+    - service: Кесарево сечение
+      price: 17500
+    - service: Клизма (без учета расходных материалов)
+      price: 900
+    - service: Коагуляция Б/Х 4 CITO (AW650) 1 час
+      price: 1800
+    - group: Комбинированный остеосинтез
+      services:
+        - service: Комбинированный остеосинтез простого поперечного перелома предплечья/голени
+          variants:
+            - condition: Кошки и собаки до 10 кг
+              price: 17000
+        - service: Комбинированный остеосинтез простого поперечного перелома предплечья/голени.Собаки более 10 кг
+          price: 19000
+        - service: Комбинированный остеосинтез сложного перелома предплечья/голени
+          price: 23700
+    - service: Коронавирусный гастроэнтерит Ag ИХ
+      price: 1850
+    - service: Кортизол
+      price: 1800
+    - service: Кровопаразитарные инвазии (микроскопия)
+      price: 900
+    - group: Купирование
+      services:
+        - service: Купирование ушных раковин
+          variants:
+            - price: 10200
+            - condition: свыше 2-х месячного возраста
+              price: 9000
+        - service: Купирование хвоста
+          price: 3500
+    - group: Купирование ушных раковин
+      services:
+        - service: Купирование ушных раковин до 10-ти дневного возраста
+          price: 4500
+        - service: Купирование ушных раковин от 10-ти дневного
+          variants:
+            - condition: до 2-х месячного возраста
+              price: 6700
+    - service: Кюрретаж препуциального мешка
+      price: 1200
+    - service: Лактат
+      price: 650
+    - service: Лапароцентез под Контролем УЗИ
+      price: 2200
+    - service: Лейкограмма
+      price: 800
+    - service: Лекарственный мониторинг (фенобарбитал, паглюферал) – базовый уровень, проба №1
+      price: 4400
+    - service: Лечение свища корня зуба (удаление зуба, обработка свищевого хода)
+      variants:
+        - condition: Кошки и собаки до 10 кг
+          price: 1900
+        - condition: Собаки до 25 кг
+          price: 2000
+    - service: Лечение свища корня зуба (удаление зуба, обработка свищевого хода). Собаки более 25 кг
+      price: 2200
+    - service: Липаза
+      price: 900
+    - group: Лямблиоз
+      services:
+        - service: Лямблиоз Ag ИХ
+          price: 1850
+        - service: Лямблиоз Ig G ИФА
+          price: 2400
+    - service: Мазок из наружного слухового прохода (R+L) на микрофлору
+      price: 1600
+    - service: Мазок-отпечаток с кожи
+      price: 2800
+    - service: Местная обработка Лайм Сульфур (без учета препарата)
+      price: 400
+    - service: Метаболизм железа
+      price: 1250
+    - service: Механическая эвакуация каловых масс 1 категории
+      price: 1200
+    - group: Механическое
+      services:
+        - service: Механическое опорожнение мочевого пузыря
+          price: 450
+        - service: Механическое удаление конкрементов (уролитов) из уретры. Кролики
+          price: 8400
+    - service: Миелограмма
+      price: 2500
+    - service: Микоплазмоз Ig G ИФА
+      price: 1800
+    - service: Микропротеин
+      price: 700
+    - group: Микроскопия
+      services:
+        - service: Микроскопия на отодектоз, отодемодекоз в клинике
+          price: 1000
+        - service: Микроскопия (соскоб с кожи) на эктопаразитов 1-2 стекла
+          price: 1000
+    - service: Минеральный обмен 9 показателей
+      price: 1300
+    - group: Наложение
+      services:
+        - service: Наложение бинтовой повязки
+          price: 400
+        - service: Наложение гипсовой повязки (без учета расходных материалов)
+          price: 3200
+        - service: Наложение шва
+          price: 450
+    - service: Нейролептаналгезия для проведения исследований и манипуляций
+      price: 1100
+    - service: Нефроэктомия
+      variants:
+        - price: 20300
+        - condition: Собаки до 10 кг.
+          price: 20300
+    - group: Обработка
+      services:
+        - service: Обработка глаз (1 животное)
+          price: 250
+        - service: Обработка - купание с лечебным средством (Лайм-сульфуром, Имаверолом или др.)
+          price: 2600
+        - service: Обработка носовой полости
+          price: 250
+        - service: Обработка против эктопаразитов (без стоимости препарата)
+          price: 300
+        - service: Обработка раны (без учета расходных материалов)
+          price: 300
+        - service: Обработка ротовой полости (1 раз)
+          price: 250
+        - service: Обработка ушей каплями (1 животное, без учета препаратов)
+          price: 250
+        - service: Обработка шва (без учета расходных материалов)
+          price: 400
+    - service: Обрезка резцов у грызунов/ клюва у птиц
+      price: 700
+    - service: Общий Ig E
+      variants:
+        - condition: собак
+          price: 2300
+    - group: Окраска
+      services:
+        - service: Окраска для диагностики болезни Вильсона (Cu) (ПС)
+          price: 1000
+        - service: Окраска по Массону (рекомендовано при исследовании мышечных тканей) (ПС)
+          price: 1000
+    - service: Окрашивание цитологических препаратов по Цилю-Нильсену (ПС)
+      price: 1500
+    - group: Оксигенация от
+      services:
+        - service: Оксигенация от 0 до 3 часов
+          price: 500
+        - service: Оксигенация от 3 до 6 часов
+          price: 800
+        - service: Оксигенация от 6 до 12 часов
+          price: 1400
+        - service: Оксигенация от 12 до 24 часов
+          price: 2500
+    - service: Онихэктомия 2 лапы
+      price: 11000
+    - service: Оперативное лечение при фимозе, парафимозе. Собаки более 25кг
+      price: 9600
+    - service: Оперативное лечение при фимозе, парафимозе
+      variants:
+        - condition: Собаки до 10кг
+          price: 4800
+        - condition: Собаки до 25кг
+          price: 7500
+    - service: Описторхоз Ig G ИФА
+      price: 2400
+    - group: Определение
+      services:
+        - service: Определение вида гельминта
+          price: 750
+        - service: Определение дня овуляции
+          price: 1800
+        - service: Определение совместимости донорской крови цельной
+          price: 1600
+        - service: Определение чувствительности к бактериофагам(ПС)
+          price: 2000
+    - service: Особо опасные болезни кошек (ИФА)
+      price: 4800
+    - group: 'Остеосинтез бедренной кости (внутренняя или внешняя фиксация) :'
+      services:
+        - service: 'Остеосинтез бедренной кости (внутренняя или внешняя фиксация) : простой перелом'
+          variants:
+            - condition: Кошки
+              price: 17000
+            - condition: Собаки до 25 кг
+              price: 19200
+        - service: 'Остеосинтез бедренной кости (внутренняя или внешняя фиксация) : простой перелом. Собаки более 25 кг'
+          price: 19700
+        - service: 'Остеосинтез бедренной кости (внутренняя или внешняя фиксация) : сложный перелом'
+          variants:
+            - condition: Кошки
+              price: 22100
+            - condition: Собаки до 25 кг
+              price: 22600
+        - service: 'Остеосинтез бедренной кости (внутренняя или внешняя фиксация) : сложный перелом. Собаки более 25 кг'
+          price: 23700
+    - group: Остеосинтез
+      services:
+        - service: Остеосинтез нижней челюсти при симфезарном переломе
+          variants:
+            - condition: Кошки
+              price: 13500
+        - service: Остеосинтез обоих мыщелков бедренной кости
+          variants:
+            - condition: Кошки
+              price: 17000
+            - condition: Собаки до 25 кг
+              price: 19700
+        - service: Остеосинтез обоих мыщелков бедренной кости. Собаки более 25 кг
+          price: 18000
+        - service: Остеосинтез одного мыщелка бедренной кости
+          variants:
+            - condition: Кошки
+              price: 17000
+            - condition: Собаки до 25 кг
+              price: 18600
+        - service: Остеосинтез одного мыщелка бедренной кости. Собаки более 25 кг
+          price: 20300
+        - service: Остеосинтез пальцев
+          price: 18000
+    - group: Остеосинтез таза
+      services:
+        - service: Остеосинтез таза (простой перелом)
+          price: 31000
+        - service: Остеосинтез таза (сложный перелом)
+          price: 36000
+    - service: Открытая биопсия
+      price: 14200
+    - group: Отоскопия
+      services:
+        - service: Отоскопия лечение отита среднего уха животному весом
+          variants:
+            - condition: от 1 до 10 кг
+              price: 26000
+            - condition: от 11 до 30 кг
+              price: 29000
+            - condition: от 30 кг
+              price: 31500
+        - service: Отоскопия НСП
+          price: 750
+    - group: Оформление
+      services:
+        - service: Оформление вет. паспорта
+          price: 350
+        - service: Оформление документов
+          price: 5000
+    - service: Офтальмологические обработки (от 5 до 10 в день)
+      price: 700
+    - service: Офтальмоскопия
+      price: 1100
+    - group: Панкреатическая
+      services:
+        - service: Панкреатическая амилаза
+          variants:
+            - condition: собак
+              price: 1100
+        - service: Панкреатическая липаза ИФА
+          price: 2800
+        - service: Панкреатическая эластаза
+          variants:
+            - condition: собак (Н)
+              price: 7600
+    - service: Панкреатический профиль
+      variants:
+        - condition: собак
+          price: 2100
+    - group: Панлейкопения
+      services:
+        - service: Панлейкопения Ig G РИФ
+          price: 3250
+        - service: Панлейкопения кошек Ag ИХ
+          price: 1850
+    - service: Паразитологическое исследование фекалий (нативный препарат, флотация) ВЮ
+      price: 1500
+    - group: Парацентез передней камеры глаза
+      services:
+        - service: Парацентез передней камеры глаза 1 категории
+          price: 1350
+        - service: Парацентез передней камеры глаза 2 категории
+          price: 2350
+    - group: Парвовирусная инфекция собак
+      services:
+        - service: Парвовирусная инфекция собак Ag ИХ
+          price: 1850
+        - service: Парвовирусная инфекция собак Ig G ИФА
+          price: 2200
+    - service: Парвовирусный Ag и коронавирусный Ag гастроэнтерит ИХ
+      price: 1400
+    - service: Пастереллез P.multocida
+      price: 1500
+    - service: Паховая грыжа
+      variants:
+        - condition: кошки
+          price: 4500
+        - condition: собаки до 25 кг
+          price: 5800
+    - group: Паховая грыжа
+      services:
+        - service: Паховая грыжа . Собака
+          variants:
+            - condition: до 10 кг.
+              price: 8400
+        - service: Паховая грыжа собаки более 25 кг
+          price: 9200
+    - service: Перевозка животного в (из) клинику(и)
+      price: 2000
+    - service: Перекрестная проба
+      price: 1600
+    - service: Пероральное введение (введение 1 препарата)
+      price: 200
+    - group: Пероральное введение (введение от
+      services:
+        - service: Пероральное введение (введение от 4 до 7 препаратов)
+          price: 700
+        - service: Пероральное введение (введение от 8 до 11 препаратов)
+          price: 1500
+    - service: Печеночный профиль
+      price: 1800
+    - service: Пироплазмоз/Гемобартонеллез (мазок)
+      price: 950
+    - service: Пироплазмоз мазок крови CITO
+      price: 1200
+    - service: Подкожная инфузия (от 30 до 100 мл.)
+      price: 600
+    - service: Подшивание железы третьего века
+      price: 10100
+    - group: Постановка
+      services:
+        - service: Постановка дренажа (1 штука)
+          price: 450
+        - service: Постановка перитонеальных дренажей
+          price: 2600
+        - service: Постановка эндотрахеальной трубки
+          price: 450
+        - service: Постановка эндотрахеальной трубки животным с брахеоцефалическим синдромом
+          price: 700
+    - service: Почечный профиль
+      price: 1800
+    - service: Почечный профиль 9 CITO (AW198) 1 час
+      price: 2500
+    - service: Проба с АКТГ (кортизол – 2 пробы)
+      price: 2200
+    - service: Прогестерон
+      price: 2100
+    - service: Прогестерон Cito
+      price: 2900
+    - group: Пункция
+      services:
+        - service: Пункция брюшной полости (лапароцентез)
+          price: 600
+        - service: Пункция грудной полости (торакоцентез)
+          price: 900
+        - service: Пункция отогематомы, гигромы, серомы
+          price: 600
+    - service: Пупочная грыжа
+      variants:
+        - condition: кошки
+          price: 5700
+        - condition: собаки до 10 кг
+          price: 7200
+        - condition: собаки до 25 кг
+          price: 8300
+    - service: Пупочная грыжа собаки более 25 кг
+      price: 8900
+    - service: ПХО 1 категории.Кошки
+      price: 3400
+    - service: ПХО 1 категория - при любых поверхностных ранах
+      variants:
+        - condition: Кошки и собаки до 10 кг
+          price: 3400
+        - condition: Собаки свыше 10 кг.
+          price: 3900
+    - service: ПХО 2 категория - при повреждении кожи, мышц, сухожилий
+      variants:
+        - condition: Кошки и собаки до 10 кг.
+          price: 4500
+        - condition: Собаки свыше 10 кг.
+          price: 5100
+    - service: ПХО 3 категории- при открытых переломах, обширных травмах
+      variants:
+        - condition: Кошки и собаки до 10 кг
+          price: 5600
+        - condition: Собаки свыше 10 кг
+          price: 6200
+    - group: Реанимация новорожденного животного.
+      services:
+        - service: Реанимация новорожденного животного. Кошки и собаки более 2.5 кг
+          price: 1400
+        - service: Реанимация новорожденного животного. Собаки до 2.5 кг
+          price: 1900
+    - service: Реанимация Сердечно-легочная (включая медикаменты и расходные материалы)
+      price: 3200
+    - service: Ревматоидный фактор
+      price: 600
+    - group: Регионарная
+      services:
+        - service: Регионарная мастэктомия
+          variants:
+            - condition: кошки и собаки до 10 кг
+              price: 15800
+            - condition: собаки от 10 до 20 кг
+              price: 14600
+            - condition: собаки от 20 до 30 кг
+              price: 18600
+            - condition: собаки от 30 до 50 кг
+              price: 22000
+            - condition: собаки свыше 50 кг
+              price: 24800
+        - service: Регионарная химиотерапия 1 сеанс (без стоимости препаратов)
+          price: 5100
+    - service: Ректальное введение
+      price: 300
+    - service: Ретикулоциты
+      price: 900
+    - service: Ретикулоциты Кошек ВЮ
+      price: 1200
+    - service: Родовспоможение 1 час (без учета препаратов)
+      variants:
+        - condition: Кошки, собаки до 10 кг
+          price: 1400
+    - service: Сердечный профиль
+      price: 1800
+    - service: Симметричный диметиларгинин кошек и
+      variants:
+        - condition: собак (SDMA)
+          price: 3500
+    - service: Сканирование чипа и проверка в базе
+      price: 650
+    - service: Снятие аппарата (Илизарова) внешней фиксации
+      price: 4500
+    - service: Снятие дренажей (1 штука)
+      price: 300
+    - service: Снятие зубного камня /за зуб
+      variants:
+        - condition: Кошки и собаки до 10 кг
+          price: 350
+        - condition: Собаки до 25 кг
+          price: 400
+    - service: Снятие зубного камня /за зуб. Собаки более 25 кг
+      price: 450
+    - service: Снятие швов (до 10 см)
+      price: 450
+    - group: Соотношение
+      services:
+        - service: Соотношение альбумин/глобулин
+          price: 450
+        - service: Соотношение белок/креатинин в моче
+          price: 700
+    - service: С-реактивный белок собак ИФА
+      price: 2800
+    - service: Срочная выписка из амбулаторной карты
+      price: 3500
+    - group: Стрижка когтей
+      services:
+        - service: Стрижка когтей 1 категория
+          price: 550
+        - service: Стрижка когтей 2 категория
+          price: 800
+    - group: Субтотальная
+      services:
+        - service: Субтотальная колонэктомия при мегаколоне у кошек
+          price: 20300
+        - service: Субтотальная колэктомия. Кошки
+          price: 20300
+        - service: Субтотальная мастэктомия
+          variants:
+            - condition: кошки и собаки до 10 кг
+              price: 15200
+            - condition: собаки от 10 до 20 кг
+              price: 18000
+            - condition: собаки от 20 до 30 кг
+              price: 20300
+            - condition: собаки от 30 до 50 кг
+              price: 23100
+            - condition: собаки свыше 50 кг
+              price: 25500
+    - service: Судорожный синдром
+      price: 1800
+    - service: Сывороточный амилоид А кошек
+      price: 2800
+    - service: Т3 общий
+      price: 1800
+    - service: Т3 свободный
+      price: 1800
+    - service: Т4 Общий CITO
+      price: 2950
+    - service: Т4 свободный
+      price: 1800
+    - service: Тарзорафия
+      price: 4500
+    - service: Тестостерон
+      price: 2500
+    - service: Тест с фенилэфрином
+      price: 600
+    - group: Тест Ширмера
+      services:
+        - service: Тест Ширмера оба глаза
+          price: 700
+        - service: Тест Ширмера один глаз
+          price: 450
+    - service: Титр антител класса M (Ig M) к Парвовирусу и Чуме
+      variants:
+        - condition: собак
+          price: 4200
+    - service: Токсокароз Ig G ИФА
+      price: 3200
+    - service: Тонометрия ВГД
+      price: 800
+    - service: Торакоцентез под Контролем УЗИ
+      price: 2200
+    - service: Тотальная мастэктомия
+      variants:
+        - condition: кошки и собаки до 10 кг
+          price: 18000
+        - condition: собаки от 10 до 20 кг
+          price: 20300
+        - condition: собаки от 20 до 30 кг
+          price: 23700
+        - condition: собаки от 30 до 50 кг
+          price: 25500
+        - condition: собаки свыше 50 кг
+          price: 30500
+    - service: Травматический вывих коленной чашечки (ушивание капсулы)
+      price: 18600
+    - service: Трихомониаз Ig G ИФА
+      price: 2400
+    - service: Трихомоноз кошек
+      price: 1200
+    - service: Трихоскопия
+      price: 1750
+    - service: Трихоскопия волос
+      price: 1000
+    - service: Тромбоциты
+      price: 850
+    - service: Тропонин I ИФА
+      price: 2300
+    - service: ТТГ CITO
+      price: 2950
+    - service: ТТГ
+      variants:
+        - condition: собак
+          price: 1800
+    - group: Удаление
+      services:
+        - service: Удаление абсцесса культи матки
+          variants:
+            - condition: Кошки
+              price: 12400
+        - service: Удаление железы 3-го века (только при онкологических заболеваниях)
+          price: 9100
+        - service: Удаление зуба сложное — с распиливанием
+          price: 1100
+        - service: Удаление инородного предмета из конъюктивы
+          price: 800
+        - service: Удаление молочного клыка (за зуб)
+          variants:
+            - condition: Кошки и собаки до 10 кг
+              price: 700
+        - service: Удаление молочного клыка (за зуб). Собаки более 10 кг
+          price: 800
+        - service: Удаление молочных зубов (резцы, премоляры- за зуб)
+          price: 350
+        - service: Удаление опухоли пальца с удалением пальца
+          variants:
+            - condition: кошки и собаки до 10 кг
+              price: 4100
+            - condition: собаки от 10 до 20 кг
+              price: 6200
+            - condition: собаки от 20 до 30 кг
+              price: 6700
+            - condition: собаки от 30 до 50 кг
+              price: 8400
+            - condition: собаки свыше 50 кг
+              price: 9100
+        - service: Удаление паранальных синусов по показаниям
+          price: 11300
+        - service: Удаление прибылых пальцев в возрасте сташе 3 недель
+          price: 4500
+    - group: Удаление коренного зуба
+      services:
+        - group: Удаление коренного зуба
+          services:
+            - service: Удаление коренного зуба 1-я степень сложности
+              price: 400
+            - service: Удаление коренного зуба 2-я степень сложности
+              price: 750
+            - service: Удаление коренного зуба 3-я степень сложности
+              price: 900
+    - group: Удаление коренного клыка
+      services:
+        - group: Удаление коренного клыка —
+          services:
+            - service: Удаление коренного клыка — верхняя челюсть
+              variants:
+                - condition: Кошки и собаки до 10 кг
+                  price: 1100
+            - service: Удаление коренного клыка — верхняя челюсть. Собаки более 10 кг
+              price: 1500
+            - service: Удаление коренного клыка — нижняя челюсть
+              variants:
+                - condition: Кошки и собаки до 10 кг
+                  price: 1000
+            - service: Удаление коренного клыка — нижняя челюсть. Собаки более 10 кг
+              price: 1300
+    - group: Удаление лигатурного абсцесса
+      services:
+        - group: Удаление лигатурного абсцесса культи
+          services:
+            - service: Удаление лигатурного абсцесса культи матки
+              variants:
+                - condition: Кошки
+                  price: 12400
+                - condition: Собаки до 10кг
+                  price: 12400
+                - condition: Собаки до 25кг
+                  price: 13600
+            - service: Удаление лигатурного абсцесса культи матки. Собаки более 25кг
+              price: 15800
+            - service: Удаление лигатурного абсцесса культи яичника
+              variants:
+                - condition: Кошки
+                  price: 12400
+                - condition: Собаки до 10кг
+                  price: 12400
+                - condition: Собаки до 25кг
+                  price: 13500
+            - service: Удаление лигатурного абсцесса культи яичника/реминантного яичника. Кошки
+              price: 12400
+            - service: Удаление лигатурного абсцесса культи яичника. Собаки более 25кг
+              price: 16000
+    - group: УЗИ (ультразвуковое исследование)
+      services:
+        - group: УЗИ (ультразвуковое исследование)
+          services:
+            - service: УЗИ (ультразвуковое исследование) Брюшной Полости
+              price: 3000
+            - service: УЗИ (ультразвуковое исследование) Брюшной Полости. Проведение исследования на дому
+              price: 10000
+            - service: УЗИ (ультразвуковое исследование) Грудной Полости
+              price: 3000
+            - service: УЗИ (ультразвуковое исследование) ДОПОЛНИТЕЛЬНОЙ зоны
+              price: 2200
+            - service: УЗИ (ультразвуковое исследование) ОДНОГО органа Брюшной Полости
+              price: 2200
+            - service: УЗИ (ультразвуковое исследование) ОДНОЙ Системы
+              price: 2600
+            - service: УЗИ (ультразвуковое исследование) Отдельных Поверхностных Образований
+              price: 2200
+            - service: УЗИ (ультразвуковое исследование) Шеи
+              price: 3000
+        - service: УЗИ (ультразвуковое исследование ) Глазного Яблока
+          price: 2200
+        - group: УЗИ (ультразвуковое исследование) на
+          services:
+            - service: УЗИ (ультразвуковое исследование) на Беременность
+              price: 2200
+            - service: УЗИ (ультразвуковое исследование) на Наличие Жидкости
+              price: 2200
+    - service: Унилатеральная мастэктомия
+      variants:
+        - condition: кошки и собаки до 10 кг
+          price: 14600
+        - condition: собаки от 10 до 20 кг
+          price: 19200
+        - condition: собаки от 20 до 30 кг
+          price: 20300
+        - condition: собаки от 30 до 50 кг
+          price: 22600
+        - condition: собаки свыше 50 кг
+          price: 26500
+    - service: Уреаплазмоз IgG ИФА
+      price: 2400
+    - service: Уретротомия. Собаки более 25кг
+      price: 23700
+    - service: Уретротомия
+      variants:
+        - condition: Собаки до 10кг
+          price: 18000
+        - condition: Собаки до 25кг
+          price: 20500
+    - service: УФ-диагностика
+      price: 600
+    - service: Ушивание промежностной грыжи
+      variants:
+        - condition: Собаки до 10 кг.
+          price: 13500
+    - group: Фиксация
+      services:
+        - service: Фиксация агрессивного животного (при наличии возможности)
+          price: 1300
+        - service: Фиксация неагрессивного животного
+          price: 800
+    - service: Флуоресцентный тест
+      price: 800
+    - service: Фотоматериалы гистологических и цитологических препаратов
+      price: 1000
+    - service: Фруктозамин
+      price: 650
+    - service: Хеликобактериоз Ig G ИФА
+      price: 2400
+    - service: Химиотерапия 1 сеанс (без учета стоимости препаратов)
+      price: 4100
+    - group: Химиотерапия внутриплевральное введение
+      services:
+        - service: Химиотерапия внутриплевральное введение 1 сеанс (без стоимости препаратов)
+          price: 4500
+        - service: Химиотерапия внутриплевральное введение с аспирацией жидкости 1 сеанс (без стоимости препаратов)
+          price: 4900
+    - service: Хирургия слезного карункула
+      price: 6400
+    - service: Хламидиоз Ig G ИФА
+      price: 1800
+    - service: Холецистэктомия
+      price: 18000
+    - service: Холецистэктомия - Удаление желчного пузыря лапароскопически
+      price: 28000
+    - service: Цестодозы Ig G ИФА
+      price: 2400
+    - service: Цистатин-Ц (аналог SDMA)
+      price: 2800
+    - service: Цистоцентез
+      price: 600
+    - service: Цистоцентез с эвакуацией мочи
+      price: 800
+    - service: Цистоцентез с эвакуацией мочи на дому
+      price: 2000
+    - service: Цитологическое исследование
+      price: 3000
+    - group: Цитологическое исследование
+      services:
+        - service: Цитологическое исследование крови
+          price: 3200
+        - service: Цитологическое исследование мочи (окраска по Паппенгейму)(ПС)
+          price: 2000
+        - service: Цитологическое исследование окрашенных мазков с кожи, НСП — в процессе лечения
+          price: 1000
+        - service: Цитологическое исследование синовиальной жидкости
+          price: 3000
+        - service: Цитологическое исследование транссудатов и экссудатов
+          price: 3200
+        - service: Цитологическое исследование цереброспинальной жидкости
+          price: 2500
+    - group: Цитология
+      services:
+        - group: Цитология
+          services:
+            - service: Цитология глаз (конъюнктива/роговица) (ПС)
+              price: 2500
+            - service: Цитология желчи (ПС)
+              price: 2500
+            - service: Цитология содержимого ушного прохода (наружное, среднее), мазки-отпечатки с кожи (ПС)
+              price: 2500
+        - group: Цитология кожи, лимфатических узлов, внутренних органов
+          services:
+            - service: Цитология кожи, лимфатических узлов, внутренних органов (1 локализация) (ПС)
+              price: 3500
+            - service: Цитология кожи, лимфатических узлов, внутренних органов (вторая и последующая локализация) (ПС)
+              price: 2000
+    - group: Чума плотоядных
+      services:
+        - service: Чума плотоядных Ag ИХ
+          price: 1650
+        - service: Чума плотоядных Ig G ИФА
+          price: 2200
+    - service: Экзентерация глазного яблока
+      variants:
+        - price: 12400
+        - condition: Кошки
+          price: 11300
+    - service: Эктопаразиты
+      price: 650
+    - service: Электрокардиография (ЭКГ)
+      price: 2600
+    - service: Электролиты (6 показателей)
+      price: 900
+    - group: Электролиты расширенный комплекс
+      services:
+        - service: Электролиты расширенный комплекс 9 CITO (AW 1073) 1 час
+          price: 2100
+        - service: Электролиты расширенный комплекс 13 CITO (AW 01985) 1 час
+          price: 2200
+    - group: Электроэксцизия фиброзного эпулиса
+      services:
+        - service: Электроэксцизия фиброзного эпулиса (1-2 эпулиса)
+          price: 1900
+        - service: Электроэксцизия фиброзного эпулиса (3 и более)
+          price: 3600
+    - group: Элетроэксцизия новообразования слизистой оболочки ротовой полости
+      services:
+        - service: Элетроэксцизия новообразования слизистой оболочки ротовой полости (1-2 н/о)
+          variants:
+            - condition: Кошки
+              price: 3000
+            - condition: Собаки до 10 кг
+              price: 3100
+        - service: Элетроэксцизия новообразования слизистой оболочки ротовой полости (1-2 н/о). Собаки более 10 кг
+          price: 3600
+        - service: Элетроэксцизия новообразования слизистой оболочки ротовой полости (3 и более н/о)
+          variants:
+            - condition: Собаки до 25 кг
+              price: 4500
+    - group: Элетроэксцизия
+      services:
+        - service: Элетроэксцизия н/о слизистой оболочки ротовой полости (3 и более н/о)
+          variants:
+            - condition: Кошки и собаки до 10 кг
+              price: 4200
+        - service: Элетроэксцизия н/о слизистой оболочки ротовой полости (3 и более н/о). Собаки более 25 кг
+          price: 5100
+    - service: Эрлихиоз Ig G ИФА
+      price: 3600
+    - service: Эстрадиол
+      price: 2500
+    - group: Эхокардиография
+      services:
+        - service: Эхокардиография развернутая (ЭХО)
+          price: 3600
+        - service: Эхокардиография (ЭХО)
+          price: 3000
+    - service: Яйца гельминтов и цисты простейших (метод флотации)
+      price: 800

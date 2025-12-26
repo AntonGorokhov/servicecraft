@@ -52,7 +52,7 @@ func main() {
 	defer qdrantService.Close()
 
 	// Pipeline
-	pipelineService := pipeline.NewPipelineService(cfg.ReplicateToken, qdrantService, articleService, priceService)
+	pipelineService := pipeline.NewPipelineService(cfg.ReplicateToken, cfg.OpenAIAPIKey, qdrantService, articleService, priceService)
 
 	// Agent (YandexGPT)
 	yandexClient := agent.NewYandexGPTClient(cfg.YandexGPTAPIKey, cfg.YandexGPTFolderID, cfg.YandexGPTModel)
@@ -81,6 +81,11 @@ func main() {
 	auth.POST("/login", authHandler.Login)
 	auth.POST("/refresh", authHandler.Refresh)
 	auth.POST("/logout", authHandler.Logout)
+
+	// Internal routes (no auth — Docker network isolation only)
+	api.POST("/agent/rag", agentHandler.RAG)
+	api.POST("/agent/rag/stream", agentHandler.RAGStream)
+	api.POST("/reindex", pipelineHandler.Reindex)
 
 	// Protected routes
 	protected := api.Group("")
