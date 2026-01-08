@@ -85,6 +85,7 @@ func main() {
 	// Internal routes (no auth — Docker network isolation only)
 	api.POST("/agent/rag", agentHandler.RAG)
 	api.POST("/agent/rag/stream", agentHandler.RAGStream)
+	api.POST("/agent/context", agentHandler.Context)
 	api.POST("/reindex", pipelineHandler.Reindex)
 
 	// Protected routes

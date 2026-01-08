@@ -1,50 +1,85 @@
 """
-Voice agent server: WebSocket ↔ SpeechKit STT + OpenAI TTS + Go backend RAG (SSE).
+Voice agent relay: Browser WebSocket ↔ OpenAI Realtime API WebSocket.
 
-Browser sends PCM audio chunks over WebSocket.
-SpeechKit STT (gRPC streaming with built-in VAD) transcribes in real-time.
-On end-of-utterance → stream RAG response from Go backend via SSE.
-Sentences are pipelined: TTS for sentence N runs while SSE buffers sentence N+1.
-Supports barge-in: new speech cancels current response.
+Single-service voice-to-voice with native STT + LLM + TTS in one connection.
+RAG context is provided via function calling → Go backend /api/agent/context.
+On session start, pre-loads general KB context into instructions.
 """
 
 import asyncio
+import base64
 import json
 import logging
 import os
-import re
 
 import aiohttp
-import grpc
-
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-
-# Proto imports (generated during Docker build, on PYTHONPATH)
-from yandex.cloud.ai.stt.v3 import stt_pb2, stt_service_pb2_grpc
+import websockets
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("voice-agent")
 
 # --- Config ---
-YANDEX_API_KEY = os.getenv("YANDEX_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8080")
 DEFAULT_COMPANY_ID = int(os.getenv("DEFAULT_COMPANY_ID", "1"))
 TTS_VOICE = os.getenv("TTS_VOICE", "ash")
-TTS_MODEL = os.getenv("TTS_MODEL", "gpt-4o-mini-tts")
-TTS_SPEED = float(os.getenv("TTS_SPEED", "1.15"))
-TTS_INSTRUCTIONS = os.getenv(
-    "TTS_INSTRUCTIONS",
-    "Говори быстро и естественно, как оператор колл-центра ветеринарной клиники. "
-    "Будь дружелюбной и профессиональной. Темп речи — энергичный, без длинных пауз.",
-)
 
-STT_HOST = "stt.api.cloud.yandex.net:443"
-SAMPLE_RATE_IN = 16000   # STT input
-SAMPLE_RATE_OUT = 24000  # OpenAI TTS PCM output
+REALTIME_URL = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview"
+CONTEXT_ENDPOINT = f"{BACKEND_URL}/api/agent/context"
 
-RAG_STREAM_ENDPOINT = f"{BACKEND_URL}/api/agent/rag/stream"
+# --- Clinic identity (baked into every session) ---
+CLINIC_INFO = """ИНФОРМАЦИЯ О КЛИНИКЕ:
+Название: Ветеринарная клиника «ЗооМедик»
+Адрес: г. Москва, ул. Ветеринарная, д. 12
+Телефон: +7 (495) 123-45-67
+Режим работы: ежедневно с 9:00 до 21:00, без выходных
+Экстренный приём: круглосуточно (звонок по основному номеру)
+Сайт: zoomedik.ru
+
+Услуги: терапия, хирургия, вакцинация, стерилизация, УЗИ, рентген, стоматология, \
+лабораторная диагностика, чипирование, груминг.
+Виды животных: собаки, кошки, грызуны, птицы, рептилии."""
+
+BASE_INSTRUCTIONS = """Ты — Анна, оператор колл-центра ветеринарной клиники «ЗооМедик». \
+Клиент звонит тебе по телефону. Ты уже подняла трубку.
+
+{clinic_info}
+
+СЦЕНАРИЙ РАЗГОВОРА:
+1. ПРИВЕТСТВИЕ: При первом обращении представься: «Ветеринарная клиника ЗооМедик, оператор Анна, здравствуйте! Чем могу помочь?»
+2. ВЫЯВЛЕНИЕ ПОТРЕБНОСТИ: Выслушай клиента. Уточняющие вопросы: какое животное, какой возраст, что беспокоит.
+3. ПОИСК ИНФОРМАЦИИ: Для ответов об услугах, ценах, процедурах — ОБЯЗАТЕЛЬНО вызови search_knowledge_base.
+4. ОТВЕТ: Перескажи найденную информацию простым языком. Назови цену, если есть. Уточни, что точная стоимость — после осмотра.
+5. ЗАПИСЬ: Если клиент хочет записаться — уточни удобное время, имя и телефон. Скажи, что администратор перезвонит для подтверждения.
+6. ПРОЩАНИЕ: «Будем ждать вас в ЗооМедик! Хорошего дня!»
+
+ПРАВИЛА:
+- Говори по-русски, кратко, дружелюбно. 2-3 предложения за раз — это телефонный разговор.
+- Говори быстро и энергично, как настоящий оператор. Без длинных пауз.
+- НЕ используй Markdown, списки, звёздочки — только устная речь.
+- Если информации нет в базе знаний — НЕ выдумывай. Скажи: «Одну секунду, уточню у коллег» или «Давайте я запишу ваш вопрос, и наш специалист перезвонит».
+- НИКОГДА не говори «позвоните в клинику» или «обратитесь в ветклинику» — клиент УЖЕ звонит в клинику, ты и есть клиника.
+- При срочных симптомах (рвота кровью, судороги, потеря сознания, отравление) — немедленно предложи экстренный приём: «Это может быть срочно. Приезжайте прямо сейчас, мы примем без записи».
+- Цены из прайс-листа называй уверенно, добавляй: «Точная стоимость определяется на приёме после осмотра»."""
+
+SEARCH_TOOL = {
+    "type": "function",
+    "name": "search_knowledge_base",
+    "description": "Поиск в базе знаний клиники ЗооМедик: услуги, цены, процедуры, скрипты общения, FAQ. "
+                   "Вызывай ПЕРЕД ответом на любой вопрос об услугах, ценах, процедурах, записи.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Поисковый запрос — что хочет узнать клиент"
+            }
+        },
+        "required": ["query"],
+    },
+}
 
 app = FastAPI(title="Voice Agent")
 app.add_middleware(
@@ -55,360 +90,257 @@ app.add_middleware(
 )
 
 
-# --- Sentence splitting ---
-
-def split_sentences(text: str) -> tuple[list[str], str]:
-    """Split buffer into speakable chunks.
-    First tries sentence boundaries (.!?), then clause boundaries (,;:—)
-    for long accumulated text to reduce TTFA."""
-    # Sentence boundaries
-    parts = re.split(r'(?<=[.!?])\s+', text)
-    if len(parts) > 1:
-        return parts[:-1], parts[-1]
-
-    # Clause boundaries for long text — don't wait forever for a period
-    if len(text) > 50:
-        parts = re.split(r'(?<=[,;:—])\s+', text)
-        if len(parts) > 1 and len(parts[0]) >= 20:
-            return parts[:-1], parts[-1]
-
-    return [], text
-
-
-def clean_for_tts(text: str) -> str:
-    """Strip markdown formatting for TTS."""
-    return re.sub(r"[*_#`\[\]()]", "", text).strip()
-
-
-# --- RAG streaming ---
-
-async def stream_rag(
-    session: aiohttp.ClientSession,
-    text: str,
-    session_id: int,
-    company_id: int | None,
-    on_sentence,
-) -> str:
-    """Read SSE stream from Go backend, buffer into sentences, put into queue.
-    Returns full response text."""
-    payload = {"text": text, "session_id": session_id}
+async def call_context_api(http: aiohttp.ClientSession, query: str, company_id: int | None) -> dict:
+    """Call Go backend /api/agent/context for RAG retrieval."""
+    payload = {"query": query}
     if company_id is not None:
         payload["company_id"] = company_id
 
-    buffer = ""
-    full_response = ""
-
-    async with session.post(
-        RAG_STREAM_ENDPOINT,
-        json=payload,
-        timeout=aiohttp.ClientTimeout(total=120),
-    ) as resp:
-        if resp.status != 200:
-            body = await resp.text()
-            raise RuntimeError(f"RAG stream {resp.status}: {body}")
-
-        async for raw_line in resp.content:
-            line = raw_line.decode().strip()
-            if not line.startswith("data:"):
-                continue
-            raw = line[5:].strip()
-            try:
-                data = json.loads(raw)
-            except Exception:
-                continue
-
-            if "text" in data:
-                buffer += data["text"]
-                sentences, buffer = split_sentences(buffer)
-                for sentence in sentences:
-                    clean = clean_for_tts(sentence)
-                    if clean:
-                        full_response += sentence + " "
-                        await on_sentence(clean)
-
-    # Send remainder
-    remainder = clean_for_tts(buffer)
-    if remainder:
-        full_response += buffer
-        await on_sentence(remainder)
-
-    return full_response.strip()
+    try:
+        async with http.post(
+            CONTEXT_ENDPOINT,
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=5),
+        ) as resp:
+            if resp.status != 200:
+                body = await resp.text()
+                logger.error(f"[context] backend error {resp.status}: {body[:200]}")
+                return {"context": "", "sources": [], "price_info": ""}
+            return await resp.json()
+    except Exception as e:
+        logger.error(f"[context] request failed: {e}")
+        return {"context": "", "sources": [], "price_info": ""}
 
 
-# --- TTS (OpenAI) — streaming response directly to WebSocket ---
-
-async def synthesize_and_stream(
-    session: aiohttp.ClientSession, text: str, ws: WebSocket
-) -> None:
-    """Call OpenAI TTS and stream PCM chunks directly to WebSocket."""
-    body: dict = {
-        "model": TTS_MODEL,
-        "input": text,
-        "voice": TTS_VOICE,
-        "response_format": "pcm",
-        "speed": TTS_SPEED,
-    }
-    if TTS_INSTRUCTIONS and TTS_MODEL.startswith("gpt-"):
-        body["instructions"] = TTS_INSTRUCTIONS
-
-    async with session.post(
-        "https://api.openai.com/v1/audio/speech",
-        headers={
-            "Authorization": f"Bearer {OPENAI_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json=body,
-    ) as resp:
-        if resp.status != 200:
-            err = await resp.text()
-            logger.error(f"[tts] OpenAI error {resp.status}: {err[:200]}")
-            return
-        # Stream audio chunks as they arrive from OpenAI
-        async for chunk in resp.content.iter_chunked(12000):  # ~250ms of 24kHz
-            await ws.send_bytes(chunk)
+def build_function_output(result: dict) -> str:
+    """Format context API result as function call output string."""
+    parts = []
+    if result.get("context"):
+        parts.append(result["context"])
+    if result.get("price_info"):
+        parts.append(f"\nЦена из прайс-листа: {result['price_info']}")
+    if not parts:
+        return "Информация не найдена в базе знаний. Предложи клиенту оставить контакт — специалист перезвонит."
+    return "\n\n".join(parts)
 
 
-# --- STT streaming session ---
+async def build_session_instructions(http: aiohttp.ClientSession) -> str:
+    """Build enriched instructions: base prompt + pre-loaded KB context."""
+    instructions = BASE_INSTRUCTIONS.format(clinic_info=CLINIC_INFO)
 
-class STTSession:
-    """Manages a streaming STT gRPC session with SpeechKit."""
+    # Pre-load general clinic context from KB
+    general_queries = [
+        "приём записать на приём к ветеринару",
+        "услуги и цены клиники",
+    ]
+    preloaded_parts = []
+    for query in general_queries:
+        result = await call_context_api(http, query, DEFAULT_COMPANY_ID)
+        ctx = result.get("context", "")
+        if ctx:
+            preloaded_parts.append(ctx)
 
-    def __init__(self):
-        self._audio_queue: asyncio.Queue[bytes | None] = asyncio.Queue()
-        self._channel: grpc.Channel | None = None
+    if preloaded_parts:
+        instructions += "\n\n--- БАЗОВЫЕ ЗНАНИЯ (используй в разговоре) ---\n\n"
+        instructions += "\n\n---\n\n".join(preloaded_parts)
 
-    def push_audio(self, data: bytes):
-        self._audio_queue.put_nowait(data)
+    return instructions
 
-    def stop(self):
-        self._audio_queue.put_nowait(None)
-
-    def _request_iterator(self):
-        recognize_options = stt_pb2.StreamingOptions(
-            recognition_model=stt_pb2.RecognitionModelOptions(
-                audio_format=stt_pb2.AudioFormatOptions(
-                    raw_audio=stt_pb2.RawAudio(
-                        audio_encoding=stt_pb2.RawAudio.LINEAR16_PCM,
-                        sample_rate_hertz=SAMPLE_RATE_IN,
-                        audio_channel_count=1,
-                    ),
-                ),
-                text_normalization=stt_pb2.TextNormalizationOptions(
-                    text_normalization=stt_pb2.TextNormalizationOptions.TEXT_NORMALIZATION_ENABLED,
-                    profanity_filter=False,
-                    literature_text=False,
-                ),
-                language_restriction=stt_pb2.LanguageRestrictionOptions(
-                    restriction_type=stt_pb2.LanguageRestrictionOptions.WHITELIST,
-                    language_code=["ru-RU"],
-                ),
-                audio_processing_type=stt_pb2.RecognitionModelOptions.REAL_TIME,
-            ),
-        )
-        yield stt_pb2.StreamingRequest(session_options=recognize_options)
-
-        while True:
-            data = self._sync_queue_get()
-            if data is None:
-                break
-            yield stt_pb2.StreamingRequest(
-                chunk=stt_pb2.AudioChunk(data=data)
-            )
-
-    def _sync_queue_get(self) -> bytes | None:
-        loop = self._loop
-        future = asyncio.run_coroutine_threadsafe(self._audio_queue.get(), loop)
-        return future.result(timeout=30)
-
-    async def run(self, on_partial=None, on_final=None, on_eou=None):
-        self._loop = asyncio.get_event_loop()
-
-        def _stream():
-            creds = grpc.ssl_channel_credentials()
-            self._channel = grpc.secure_channel(STT_HOST, creds)
-            stub = stt_service_pb2_grpc.RecognizerStub(self._channel)
-            metadata = [("authorization", f"Api-Key {YANDEX_API_KEY}")]
-
-            try:
-                responses = stub.RecognizeStreaming(
-                    self._request_iterator(), metadata=metadata
-                )
-                for r in responses:
-                    event_type = r.WhichOneof("Event")
-
-                    if event_type == "partial" and r.partial.alternatives:
-                        text = r.partial.alternatives[0].text
-                        if text and on_partial:
-                            asyncio.run_coroutine_threadsafe(
-                                on_partial(text), self._loop
-                            )
-
-                    elif event_type == "final" and r.final.alternatives:
-                        text = r.final.alternatives[0].text
-                        if text and on_final:
-                            asyncio.run_coroutine_threadsafe(
-                                on_final(text), self._loop
-                            )
-
-                    elif event_type == "final_refinement":
-                        alts = r.final_refinement.normalized_text.alternatives
-                        if alts:
-                            text = alts[0].text
-                            if text and on_final:
-                                asyncio.run_coroutine_threadsafe(
-                                    on_final(text), self._loop
-                                )
-
-                    elif event_type == "eou_update":
-                        if on_eou:
-                            asyncio.run_coroutine_threadsafe(
-                                on_eou(), self._loop
-                            )
-
-            except grpc.RpcError as e:
-                logger.error(f"[stt] gRPC error: {e.code()} {e.details()}")
-            finally:
-                if self._channel:
-                    self._channel.close()
-
-        await asyncio.to_thread(_stream)
-
-    def close(self):
-        if self._channel:
-            try:
-                self._channel.close()
-            except Exception:
-                pass
-
-
-# --- WebSocket handler ---
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
-    logger.info("WebSocket connected")
+    logger.info("Browser WebSocket connected")
 
-    session_id = 0
-    accumulated_text = ""
-    current_task: asyncio.Task | None = None
-
-    stt = STTSession()
-
-    async def on_partial(text: str):
-        try:
-            await ws.send_json({"type": "partial", "text": text})
-        except Exception:
-            pass
-
-    async def on_final(text: str):
-        nonlocal accumulated_text
-        accumulated_text = text
-        logger.info(f"[stt] final: {text}")
-        try:
-            await ws.send_json({"type": "transcript", "text": text})
-        except Exception:
-            pass
-
-    async def process_utterance(text: str):
-        """Pipeline: SSE RAG → sentence queue → TTS stream → WebSocket audio."""
-        tts_task = None
-        try:
-            await ws.send_json({"type": "status", "status": "thinking"})
-
-            sentence_queue: asyncio.Queue[str | None] = asyncio.Queue()
-            first_audio_sent = False
-
-            async with aiohttp.ClientSession() as http:
-                # TTS consumer: takes sentences from queue, streams audio
-                async def tts_consumer():
-                    nonlocal first_audio_sent
-                    while True:
-                        sentence = await sentence_queue.get()
-                        if sentence is None:
-                            break
-                        if not first_audio_sent:
-                            await ws.send_json({"type": "status", "status": "speaking"})
-                            first_audio_sent = True
-                        await synthesize_and_stream(http, sentence, ws)
-
-                tts_task = asyncio.create_task(tts_consumer())
-
-                # Producer: read SSE stream, buffer sentences, push to queue
-                full_response = await stream_rag(
-                    http, text, session_id, DEFAULT_COMPANY_ID,
-                    on_sentence=sentence_queue.put,
-                )
-
-                # Signal TTS consumer to finish
-                await sentence_queue.put(None)
-                await tts_task
-
-            if full_response:
-                await ws.send_json({"type": "response", "text": full_response})
-
-            await ws.send_json({"type": "audio_end"})
-            await ws.send_json({"type": "status", "status": "listening"})
-
-        except asyncio.CancelledError:
-            if tts_task and not tts_task.done():
-                tts_task.cancel()
-            logger.info("[process] cancelled (barge-in)")
-        except Exception as e:
-            if tts_task and not tts_task.done():
-                tts_task.cancel()
-            logger.error(f"[process] error: {e}")
-            try:
-                await ws.send_json({"type": "error", "message": str(e)})
-                await ws.send_json({"type": "status", "status": "listening"})
-            except Exception:
-                pass
-
-    async def on_eou():
-        nonlocal accumulated_text, current_task
-        text = accumulated_text.strip()
-        accumulated_text = ""
-
-        if not text:
-            return
-
-        # Barge-in: cancel current processing
-        if current_task and not current_task.done():
-            current_task.cancel()
-            try:
-                await ws.send_json({"type": "interrupt"})
-            except Exception:
-                pass
-
-        logger.info(f"[eou] processing: {text}")
-        current_task = asyncio.create_task(process_utterance(text))
-
-    # Start STT stream in background
-    stt_task = asyncio.create_task(
-        stt.run(on_partial=on_partial, on_final=on_final, on_eou=on_eou)
-    )
+    openai_ws = None
+    http_session = None
 
     try:
-        while True:
-            message = await ws.receive()
-            if message["type"] == "websocket.disconnect":
-                break
-            if "text" in message:
-                data = json.loads(message["text"])
-                if data.get("type") == "config":
-                    session_id = data.get("session_id", 0)
-                    logger.info(f"Config: session_id={session_id}")
-            elif "bytes" in message:
-                stt.push_audio(message["bytes"])
-    except WebSocketDisconnect:
-        logger.info("WebSocket disconnected")
+        http_session = aiohttp.ClientSession()
+
+        # Pre-load KB context for enriched instructions
+        instructions = await build_session_instructions(http_session)
+        logger.info(f"Instructions built: {len(instructions)} chars")
+
+        # Connect to OpenAI Realtime API
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "OpenAI-Beta": "realtime=v1",
+        }
+        openai_ws = await websockets.connect(REALTIME_URL, additional_headers=headers)
+        logger.info("Connected to OpenAI Realtime API")
+
+        # Configure session
+        session_config = {
+            "type": "session.update",
+            "session": {
+                "modalities": ["text", "audio"],
+                "instructions": instructions,
+                "voice": TTS_VOICE,
+                "input_audio_format": "pcm16",
+                "output_audio_format": "pcm16",
+                "input_audio_transcription": {"model": "whisper-1"},
+                "turn_detection": {
+                    "type": "server_vad",
+                    "threshold": 0.5,
+                    "prefix_padding_ms": 300,
+                    "silence_duration_ms": 500,
+                },
+                "tools": [SEARCH_TOOL],
+                "tool_choice": "auto",
+            },
+        }
+        await openai_ws.send(json.dumps(session_config))
+        logger.info("Session configured")
+
+        await ws.send_json({"type": "status", "status": "listening"})
+
+        # --- Relay tasks ---
+
+        async def browser_to_openai():
+            """Forward browser audio/config to OpenAI Realtime API."""
+            try:
+                while True:
+                    message = await ws.receive()
+                    if message["type"] == "websocket.disconnect":
+                        break
+
+                    if "bytes" in message:
+                        audio_b64 = base64.b64encode(message["bytes"]).decode("ascii")
+                        await openai_ws.send(json.dumps({
+                            "type": "input_audio_buffer.append",
+                            "audio": audio_b64,
+                        }))
+
+                    elif "text" in message:
+                        data = json.loads(message["text"])
+                        if data.get("type") == "config":
+                            logger.info(f"Config received: {data}")
+
+            except WebSocketDisconnect:
+                logger.info("Browser disconnected")
+            except Exception as e:
+                logger.error(f"[browser→openai] error: {e}")
+
+        async def openai_to_browser():
+            """Forward OpenAI Realtime events to browser."""
+            try:
+                async for raw_msg in openai_ws:
+                    event = json.loads(raw_msg)
+                    event_type = event.get("type", "")
+
+                    if event_type == "response.audio.delta":
+                        audio_bytes = base64.b64decode(event["delta"])
+                        await ws.send_bytes(audio_bytes)
+
+                    elif event_type == "response.audio.done":
+                        await ws.send_json({"type": "audio_end"})
+
+                    elif event_type == "response.audio_transcript.done":
+                        transcript = event.get("transcript", "")
+                        if transcript:
+                            await ws.send_json({"type": "response", "text": transcript})
+
+                    elif event_type == "conversation.item.input_audio_transcription.completed":
+                        transcript = event.get("transcript", "")
+                        if transcript:
+                            await ws.send_json({"type": "transcript", "text": transcript})
+
+                    elif event_type == "conversation.item.input_audio_transcription.failed":
+                        logger.warning(f"[stt] transcription failed: {event.get('error', {})}")
+
+                    elif event_type == "input_audio_buffer.speech_started":
+                        await ws.send_json({"type": "interrupt"})
+                        await ws.send_json({"type": "status", "status": "listening"})
+
+                    elif event_type == "input_audio_buffer.speech_stopped":
+                        await ws.send_json({"type": "status", "status": "thinking"})
+
+                    elif event_type == "response.output_item.added":
+                        item = event.get("item", {})
+                        if item.get("type") == "message":
+                            await ws.send_json({"type": "status", "status": "speaking"})
+
+                    elif event_type == "response.done":
+                        response = event.get("response", {})
+                        if response.get("status") == "completed":
+                            await ws.send_json({"type": "status", "status": "listening"})
+
+                    elif event_type == "response.function_call_arguments.done":
+                        call_id = event.get("call_id", "")
+                        arguments = event.get("arguments", "{}")
+                        name = event.get("name", "")
+
+                        logger.info(f"[function_call] {name}: {arguments}")
+
+                        if name == "search_knowledge_base":
+                            try:
+                                args = json.loads(arguments)
+                                query = args.get("query", "")
+                            except json.JSONDecodeError:
+                                query = arguments
+
+                            result = await call_context_api(
+                                http_session, query, DEFAULT_COMPANY_ID
+                            )
+                            output = build_function_output(result)
+
+                            logger.info(f"[function_call] context: {output[:200]}...")
+
+                            sources = result.get("sources", [])
+                            if sources:
+                                await ws.send_json({"type": "sources", "sources": sources})
+
+                            await openai_ws.send(json.dumps({
+                                "type": "conversation.item.create",
+                                "item": {
+                                    "type": "function_call_output",
+                                    "call_id": call_id,
+                                    "output": output,
+                                },
+                            }))
+                            await openai_ws.send(json.dumps({
+                                "type": "response.create",
+                            }))
+
+                    elif event_type == "error":
+                        error = event.get("error", {})
+                        logger.error(f"[openai] error: {error}")
+                        await ws.send_json({
+                            "type": "error",
+                            "message": error.get("message", "Unknown error"),
+                        })
+
+                    elif event_type == "session.created":
+                        logger.info(f"[openai] session created: {event.get('session', {}).get('id', '')}")
+
+                    elif event_type == "session.updated":
+                        logger.info("[openai] session updated")
+
+            except websockets.exceptions.ConnectionClosed:
+                logger.info("OpenAI WebSocket closed")
+            except Exception as e:
+                logger.error(f"[openai→browser] error: {e}")
+
+        # Run both relay directions concurrently
+        browser_task = asyncio.create_task(browser_to_openai())
+        openai_task = asyncio.create_task(openai_to_browser())
+
+        done, pending = await asyncio.wait(
+            [browser_task, openai_task],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+
+        for task in pending:
+            task.cancel()
+
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+        logger.error(f"[session] error: {e}")
     finally:
-        if current_task and not current_task.done():
-            current_task.cancel()
-        stt.stop()
-        stt_task.cancel()
-        stt.close()
+        if openai_ws:
+            await openai_ws.close()
+        if http_session:
+            await http_session.close()
         logger.info("Session cleaned up")
 
 

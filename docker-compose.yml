@@ -73,12 +73,9 @@ services:
     ports:
       - "7860:7860"
     environment:
-      YANDEX_API_KEY: ${YANDEX_GPT_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       BACKEND_URL: http://backend:8080
       TTS_VOICE: ${TTS_VOICE:-ash}
-      TTS_MODEL: ${TTS_MODEL:-gpt-4o-mini-tts}
-      TTS_SPEED: ${TTS_SPEED:-1.15}
       DEFAULT_COMPANY_ID: ${DEFAULT_COMPANY_ID:-1}
     depends_on:
       - backend

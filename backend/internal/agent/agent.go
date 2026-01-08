@@ -52,6 +52,82 @@ func NewAgentService(
 	}
 }
 
+// ContextResult holds RAG context without LLM response — for OpenAI Realtime function calls.
+type ContextResult struct {
+	Context   string   `json:"context"`
+	Sources   []Source `json:"sources"`
+	PriceInfo string   `json:"price_info,omitempty"`
+}
+
+// QueryContext performs RAG search (embed → Qdrant → format) WITHOUT LLM.
+// Returns formatted KB context for the Realtime API to use as function call output.
+func (a *AgentService) QueryContext(ctx context.Context, query string, companyID *uint) (*ContextResult, error) {
+	result := &ContextResult{}
+
+	// 1. Embed
+	vec, err := a.pipeline.GetEmbedding(query)
+	if err != nil {
+		log.Printf("[agent/context] embedding failed: %v", err)
+		return result, nil // Return empty context, not error
+	}
+
+	// 2. Qdrant search
+	matches, err := a.qdrant.SearchSimilar(vec, companyID, ragTopK, ragThreshold)
+	if err != nil {
+		log.Printf("[agent/context] qdrant search failed: %v", err)
+		return result, nil
+	}
+
+	// 3. Build sources
+	for _, m := range matches {
+		result.Sources = append(result.Sources, Source{
+			Slug:     m.Slug,
+			Name:     m.Name,
+			Category: m.Category,
+			Score:    m.Score,
+		})
+	}
+
+	// 4. Fetch and format articles
+	var contextParts []string
+	limit := ragContextLimit
+	if len(matches) < limit {
+		limit = len(matches)
+	}
+	for _, m := range matches[:limit] {
+		article, err := a.articles.GetBySlug(companyID, m.Slug)
+		if err != nil || article == nil {
+			continue
+		}
+		contextParts = append(contextParts, formatArticleContext(article.Name, article.Content))
+	}
+	result.Context = strings.Join(contextParts, "\n\n---\n\n")
+
+	// 5. Price match
+	if priceMatch := a.prices.MatchService(query); priceMatch != nil {
+		result.PriceInfo = fmt.Sprintf("%s — %d руб. (категория: %s)", priceMatch.Name, priceMatch.Price, priceMatch.Category)
+	}
+
+	return result, nil
+}
+
+// QuerySync performs RAG search + non-streaming LLM completion. Returns full response and sources.
+func (a *AgentService) QuerySync(
+	ctx context.Context,
+	userMsg string,
+	sessionID uint,
+	companyID *uint,
+) (string, []Source, error) {
+	var fullResponse strings.Builder
+	sources, err := a.Query(ctx, userMsg, sessionID, companyID, func(text string) {
+		fullResponse.WriteString(text)
+	})
+	if err != nil {
+		return "", sources, err
+	}
+	return fullResponse.String(), sources, nil
+}
+
 // Query performs RAG search + LLM streaming. Returns sources found.
 func (a *AgentService) Query(
 	ctx context.Context,

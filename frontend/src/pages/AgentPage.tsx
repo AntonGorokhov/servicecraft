@@ -3,12 +3,20 @@ import { useNavigate } from "react-router-dom";
 import Markdown from "react-markdown";
 import { useAgentChat, type Source } from "../hooks/useAgentChat";
 
+type VoiceSource = {
+  slug: string;
+  name: string;
+  category: string;
+  score: number;
+};
+
 type VoiceStatus = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
 function useVoiceAgent() {
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>("idle");
   const [partialText, setPartialText] = useState("");
   const [lastResponse, setLastResponse] = useState("");
+  const [voiceSources, setVoiceSources] = useState<VoiceSource[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
@@ -59,7 +67,7 @@ function useVoiceAgent() {
       // Get microphone
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          sampleRate: 16000,
+          sampleRate: 24000,
           channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
@@ -80,7 +88,7 @@ function useVoiceAgent() {
         ws.send(JSON.stringify({ type: "config", session_id: 0 }));
 
         // Set up audio capture: ScriptProcessorNode to get PCM
-        const audioCtx = new AudioContext({ sampleRate: 16000 });
+        const audioCtx = new AudioContext({ sampleRate: 24000 });
         audioCtxRef.current = audioCtx;
         const source = audioCtx.createMediaStreamSource(stream);
         // 4096 samples buffer, mono in, no out
@@ -124,6 +132,11 @@ function useVoiceAgent() {
             break;
           case "audio_end":
             // All audio sent
+            break;
+          case "sources":
+            if (Array.isArray(data.sources)) {
+              setVoiceSources(data.sources);
+            }
             break;
           case "interrupt":
             // Barge-in: stop audio playback
@@ -183,6 +196,7 @@ function useVoiceAgent() {
     isPlayingRef.current = false;
     setVoiceStatus("idle");
     setPartialText("");
+    setVoiceSources([]);
   }, []);
 
   const toggle = useCallback(() => {
@@ -199,7 +213,7 @@ function useVoiceAgent() {
     };
   }, [disconnect]);
 
-  return { voiceStatus, partialText, lastResponse, toggle };
+  return { voiceStatus, partialText, lastResponse, voiceSources, toggle };
 }
 
 const voiceStatusLabels: Record<VoiceStatus, string> = {
@@ -226,7 +240,7 @@ export function AgentPage() {
     deleteSession,
   } = useAgentChat();
 
-  const { voiceStatus, partialText, lastResponse, toggle: toggleVoice } = useVoiceAgent();
+  const { voiceStatus, partialText, lastResponse, voiceSources, toggle: toggleVoice } = useVoiceAgent();
 
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -484,13 +498,18 @@ export function AgentPage() {
           <h3 className="text-sm font-semibold text-gray-700">Источники</h3>
         </div>
         <div className="px-4 py-3 space-y-2">
-          {sources.length === 0 ? (
-            <p className="text-xs text-gray-400">Источники появятся после ответа агента</p>
-          ) : (
-            sources.map((source, i) => (
-              <SourceCard key={i} source={source} onClick={() => navigate(`/articles/${source.slug}`)} />
-            ))
-          )}
+          {(() => {
+            const activeSources: Source[] = isVoiceActive && voiceSources.length > 0
+              ? voiceSources.map(s => ({ slug: s.slug, name: s.name, category: s.category, score: s.score }))
+              : sources;
+            return activeSources.length === 0 ? (
+              <p className="text-xs text-gray-400">Источники появятся после ответа агента</p>
+            ) : (
+              activeSources.map((source, i) => (
+                <SourceCard key={i} source={source} onClick={() => navigate(`/articles/${source.slug}`)} />
+              ))
+            );
+          })()}
         </div>
       </div>
     </div>

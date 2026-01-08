@@ -99,6 +99,26 @@ func (h *AgentHandler) Chat(c *gin.Context) {
 	flusher.Flush()
 }
 
+// Context handles RAG context retrieval for OpenAI Realtime function calls — no auth, no LLM.
+func (h *AgentHandler) Context(c *gin.Context) {
+	var req struct {
+		Query     string `json:"query" binding:"required"`
+		CompanyID *uint  `json:"company_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "query is required"})
+		return
+	}
+
+	result, err := h.agentService.QueryContext(c.Request.Context(), req.Query, req.CompanyID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
 // RAGStream handles SSE streaming RAG queries for voice agent — no auth.
 func (h *AgentHandler) RAGStream(c *gin.Context) {
 	var req struct {
