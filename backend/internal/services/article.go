@@ -90,6 +90,15 @@ func (s *ArticleService) UpdateEmbedding(articleID uint, embedding json.RawMessa
 	return s.db.Model(&models.Article{}).Where("id = ?", articleID).Update("embedding", embedding).Error
 }
 
+// ListAll returns all articles with content (for re-indexing).
+func (s *ArticleService) ListAll() ([]models.Article, error) {
+	var articles []models.Article
+	if err := s.db.Select("id, company_id, slug, name, category, content").Find(&articles).Error; err != nil {
+		return nil, err
+	}
+	return articles, nil
+}
+
 // Delete deletes an article by slug, respecting company isolation.
 func (s *ArticleService) Delete(companyID *uint, slug string) error {
 	article, err := s.GetBySlug(companyID, slug)

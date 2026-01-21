@@ -9,4 +9,5 @@ COPY . .
 
 EXPOSE 7860
 
-CMD ["python", "server.py"]
+# LiveKit agent worker — connects to LiveKit server and handles voice sessions
+CMD ["python", "agent.py", "start"]

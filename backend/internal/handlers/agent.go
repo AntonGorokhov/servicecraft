@@ -1,25 +1,42 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
+	"time"
+
+	"crypto/rand"
+	"encoding/hex"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/vetkb/backend/internal/agent"
 	"github.com/vetkb/backend/internal/services"
 )
 
 type AgentHandler struct {
-	agentService *agent.AgentService
-	chatService  *services.ChatService
+	agentService     *agent.AgentService
+	chatService      *services.ChatService
+	livekitAPIKey    string
+	livekitAPISecret string
+	livekitURL       string
 }
 
-func NewAgentHandler(agentService *agent.AgentService, chatService *services.ChatService) *AgentHandler {
+func NewAgentHandler(
+	agentService *agent.AgentService,
+	chatService *services.ChatService,
+	livekitAPIKey, livekitAPISecret, livekitURL string,
+) *AgentHandler {
 	return &AgentHandler{
-		agentService: agentService,
-		chatService:  chatService,
+		agentService:     agentService,
+		chatService:      chatService,
+		livekitAPIKey:    livekitAPIKey,
+		livekitAPISecret: livekitAPISecret,
+		livekitURL:       livekitURL,
 	}
 }
 
@@ -99,26 +116,6 @@ func (h *AgentHandler) Chat(c *gin.Context) {
 	flusher.Flush()
 }
 
-// Context handles RAG context retrieval for OpenAI Realtime function calls — no auth, no LLM.
-func (h *AgentHandler) Context(c *gin.Context) {
-	var req struct {
-		Query     string `json:"query" binding:"required"`
-		CompanyID *uint  `json:"company_id"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "query is required"})
-		return
-	}
-
-	result, err := h.agentService.QueryContext(c.Request.Context(), req.Query, req.CompanyID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, result)
-}
-
 // RAGStream handles SSE streaming RAG queries for voice agent — no auth.
 func (h *AgentHandler) RAGStream(c *gin.Context) {
 	var req struct {
@@ -186,6 +183,162 @@ func (h *AgentHandler) RAG(c *gin.Context) {
 	})
 }
 
+// Context returns formatted article content + price match for given slugs.
+// Used by the LiveKit voice agent for RAG (no embedding, no Qdrant — agent handles that).
+func (h *AgentHandler) Context(c *gin.Context) {
+	var req struct {
+		Slugs     []string `json:"slugs"`
+		Query     string   `json:"query"`
+		CompanyID uint     `json:"company_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	var companyID *uint
+	if req.CompanyID > 0 {
+		companyID = &req.CompanyID
+	}
+
+	result := h.agentService.QueryContextBySlugs(req.Slugs, req.Query, companyID)
+	c.JSON(http.StatusOK, result)
+}
+
+// ListArticlesInternal returns all articles for re-indexing. No auth — internal only.
+func (h *AgentHandler) ListArticlesInternal(c *gin.Context) {
+	articles, err := h.agentService.ListAllArticles()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, articles)
+}
+
+// Token generates a LiveKit room token for the voice agent.
+// Creates a room and dispatches the vet-clinic agent.
+func (h *AgentHandler) Token(c *gin.Context) {
+	roomName := "vet-clinic-" + randomID()
+	identity := "caller-" + randomID()
+
+	// 1. Create LiveKit room + dispatch agent
+	if err := h.createRoomAndDispatch(roomName); err != nil {
+		fmt.Printf("[livekit] room creation warning: %v\n", err)
+		// Continue anyway — room may auto-create on join in dev mode
+	}
+
+	// 2. Generate participant token
+	token, err := h.generateLiveKitToken(roomName, identity)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token": token,
+		"url":   h.livekitURL,
+		"room":  roomName,
+	})
+}
+
+// generateLiveKitToken creates a JWT for a LiveKit participant.
+func (h *AgentHandler) generateLiveKitToken(room, identity string) (string, error) {
+	now := time.Now()
+	claims := jwt.MapClaims{
+		"iss": h.livekitAPIKey,
+		"sub": identity,
+		"nbf": jwt.NewNumericDate(now),
+		"exp": jwt.NewNumericDate(now.Add(time.Hour)),
+		"jti": identity,
+		"video": map[string]interface{}{
+			"room":       room,
+			"roomJoin":   true,
+			"roomCreate": true,
+		},
+		"name": "Клиент",
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(h.livekitAPISecret))
+}
+
+// generateServerToken creates a server-level JWT for LiveKit API calls.
+func (h *AgentHandler) generateServerToken() (string, error) {
+	now := time.Now()
+	claims := jwt.MapClaims{
+		"iss": h.livekitAPIKey,
+		"nbf": jwt.NewNumericDate(now),
+		"exp": jwt.NewNumericDate(now.Add(time.Minute)),
+		"video": map[string]interface{}{
+			"roomCreate": true,
+			"roomAdmin":  true,
+			"room":       "*",
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(h.livekitAPISecret))
+}
+
+// createRoomAndDispatch creates a LiveKit room and dispatches the vet-clinic agent.
+func (h *AgentHandler) createRoomAndDispatch(roomName string) error {
+	serverToken, err := h.generateServerToken()
+	if err != nil {
+		return fmt.Errorf("generate server token: %w", err)
+	}
+
+	livekitHTTPURL := h.livekitURL
+	// Convert ws:// to http:// for API calls
+	if len(livekitHTTPURL) > 5 && livekitHTTPURL[:5] == "ws://" {
+		livekitHTTPURL = "http://" + livekitHTTPURL[5:]
+	} else if len(livekitHTTPURL) > 6 && livekitHTTPURL[:6] == "wss://" {
+		livekitHTTPURL = "https://" + livekitHTTPURL[6:]
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	// Create room
+	roomBody, _ := json.Marshal(map[string]interface{}{
+		"name":            roomName,
+		"empty_timeout":   300,
+		"max_participants": 2,
+	})
+	req, _ := http.NewRequest("POST", livekitHTTPURL+"/twirp/livekit.RoomService/CreateRoom", bytes.NewReader(roomBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+serverToken)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("create room: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("create room %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Dispatch agent
+	dispatchBody, _ := json.Marshal(map[string]interface{}{
+		"room":       roomName,
+		"agent_name": "vet-clinic",
+	})
+	req, _ = http.NewRequest("POST", livekitHTTPURL+"/twirp/livekit.AgentDispatchService/CreateDispatch", bytes.NewReader(dispatchBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+serverToken)
+
+	resp, err = client.Do(req)
+	if err != nil {
+		return fmt.Errorf("dispatch agent: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("dispatch agent %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
 // ListSessions returns user's chat sessions.
 func (h *AgentHandler) ListSessions(c *gin.Context) {
 	userID, _ := c.Get("userID")
@@ -235,4 +388,10 @@ func (h *AgentHandler) DeleteSession(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "session deleted"})
+}
+
+func randomID() string {
+	b := make([]byte, 4)
+	rand.Read(b)
+	return hex.EncodeToString(b)
 }

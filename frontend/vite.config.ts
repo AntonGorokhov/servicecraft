@@ -12,12 +12,6 @@ export default defineConfig({
         target: process.env.API_URL || "http://127.0.0.1:8080",
         changeOrigin: true,
       },
-      "/voice": {
-        target: process.env.VOICE_URL || "http://127.0.0.1:7860",
-        changeOrigin: true,
-        ws: true,
-        rewrite: (path) => path.replace(/^\/voice/, ""),
-      },
     },
   },
 });

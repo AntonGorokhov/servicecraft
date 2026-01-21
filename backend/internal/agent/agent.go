@@ -52,66 +52,74 @@ func NewAgentService(
 	}
 }
 
-// ContextResult holds RAG context without LLM response — for OpenAI Realtime function calls.
+// ContextResult holds RAG context without LLM response — for voice agent function calls.
 type ContextResult struct {
 	Context   string   `json:"context"`
 	Sources   []Source `json:"sources"`
 	PriceInfo string   `json:"price_info,omitempty"`
 }
 
-// QueryContext performs RAG search (embed → Qdrant → format) WITHOUT LLM.
-// Returns formatted KB context for the Realtime API to use as function call output.
-func (a *AgentService) QueryContext(ctx context.Context, query string, companyID *uint) (*ContextResult, error) {
+// QueryContextBySlugs fetches articles by slug, formats them, and does price matching.
+// Used by the LiveKit voice agent (no embedding, no Qdrant — agent handles those locally).
+func (a *AgentService) QueryContextBySlugs(slugs []string, query string, companyID *uint) *ContextResult {
 	result := &ContextResult{}
 
-	// 1. Embed
-	vec, err := a.pipeline.GetEmbedding(query)
-	if err != nil {
-		log.Printf("[agent/context] embedding failed: %v", err)
-		return result, nil // Return empty context, not error
-	}
-
-	// 2. Qdrant search
-	matches, err := a.qdrant.SearchSimilar(vec, companyID, ragTopK, ragThreshold)
-	if err != nil {
-		log.Printf("[agent/context] qdrant search failed: %v", err)
-		return result, nil
-	}
-
-	// 3. Build sources
-	for _, m := range matches {
-		result.Sources = append(result.Sources, Source{
-			Slug:     m.Slug,
-			Name:     m.Name,
-			Category: m.Category,
-			Score:    m.Score,
-		})
-	}
-
-	// 4. Fetch and format articles
 	var contextParts []string
-	limit := ragContextLimit
-	if len(matches) < limit {
-		limit = len(matches)
-	}
-	for _, m := range matches[:limit] {
-		article, err := a.articles.GetBySlug(companyID, m.Slug)
+	for _, slug := range slugs {
+		article, err := a.articles.GetBySlug(companyID, slug)
 		if err != nil || article == nil {
 			continue
 		}
 		contextParts = append(contextParts, formatArticleContext(article.Name, article.Content))
+		result.Sources = append(result.Sources, Source{
+			Slug:     article.Slug,
+			Name:     article.Name,
+			Category: article.Category,
+		})
 	}
 	result.Context = strings.Join(contextParts, "\n\n---\n\n")
 
-	// 5. Price match
-	if priceMatch := a.prices.MatchService(query); priceMatch != nil {
-		result.PriceInfo = fmt.Sprintf("%s — %d руб. (категория: %s)", priceMatch.Name, priceMatch.Price, priceMatch.Category)
+	if query != "" {
+		if priceMatch := a.prices.MatchService(query); priceMatch != nil {
+			result.PriceInfo = fmt.Sprintf("%s — %d руб. (категория: %s)", priceMatch.Name, priceMatch.Price, priceMatch.Category)
+		}
 	}
 
+	return result
+}
+
+// ArticleForIndex is a minimal article representation for the reindex endpoint.
+type ArticleForIndex struct {
+	ID        uint            `json:"id"`
+	Slug      string          `json:"slug"`
+	Name      string          `json:"name"`
+	Category  string          `json:"category"`
+	CompanyID *uint           `json:"company_id"`
+	Content   json.RawMessage `json:"content"`
+}
+
+// ListAllArticles returns all articles for re-indexing by the voice agent.
+func (a *AgentService) ListAllArticles() ([]ArticleForIndex, error) {
+	articles, err := a.articles.ListAll()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []ArticleForIndex
+	for _, ar := range articles {
+		result = append(result, ArticleForIndex{
+			ID:        ar.ID,
+			Slug:      ar.Slug,
+			Name:      ar.Name,
+			Category:  ar.Category,
+			CompanyID: ar.CompanyID,
+			Content:   ar.Content,
+		})
+	}
 	return result, nil
 }
 
-// QuerySync performs RAG search + non-streaming LLM completion. Returns full response and sources.
+// QuerySync performs RAG search + non-streaming LLM completion.
 func (a *AgentService) QuerySync(
 	ctx context.Context,
 	userMsg string,

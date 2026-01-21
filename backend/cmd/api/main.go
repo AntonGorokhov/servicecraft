@@ -66,7 +66,7 @@ func main() {
 	commentHandler := handlers.NewCommentHandler(commentService, articleService)
 	pipelineHandler := handlers.NewPipelineHandler(pipelineService)
 	priceHandler := handlers.NewPriceHandler(priceService)
-	agentHandler := handlers.NewAgentHandler(agentService, chatService)
+	agentHandler := handlers.NewAgentHandler(agentService, chatService, cfg.LiveKitAPIKey, cfg.LiveKitAPISecret, cfg.LiveKitURL)
 
 	r := gin.Default()
 	r.Use(middleware.CORS())
@@ -86,6 +86,8 @@ func main() {
 	api.POST("/agent/rag", agentHandler.RAG)
 	api.POST("/agent/rag/stream", agentHandler.RAGStream)
 	api.POST("/agent/context", agentHandler.Context)
+	api.GET("/agent/articles", agentHandler.ListArticlesInternal)
+	api.POST("/agent/token", agentHandler.Token)
 	api.POST("/reindex", pipelineHandler.Reindex)
 
 	// Protected routes

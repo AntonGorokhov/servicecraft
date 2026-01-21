@@ -18,6 +18,9 @@ type Config struct {
 	YandexGPTAPIKey   string
 	YandexGPTFolderID string
 	YandexGPTModel    string
+	LiveKitAPIKey     string
+	LiveKitAPISecret  string
+	LiveKitURL        string
 }
 
 func Load() *Config {
@@ -37,6 +40,9 @@ func Load() *Config {
 		YandexGPTAPIKey:   getEnv("YANDEX_GPT_API_KEY", ""),
 		YandexGPTFolderID: getEnv("YANDEX_GPT_FOLDER_ID", ""),
 		YandexGPTModel:    getEnv("YANDEX_GPT_MODEL", "yandexgpt-lite/latest"),
+		LiveKitAPIKey:     getEnv("LIVEKIT_API_KEY", "devkey"),
+		LiveKitAPISecret:  getEnv("LIVEKIT_API_SECRET", "devsecret"),
+		LiveKitURL:        getEnv("LIVEKIT_URL", "ws://localhost:7880"),
 	}
 }
 

@@ -2,201 +2,162 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Markdown from "react-markdown";
 import { useAgentChat, type Source } from "../hooks/useAgentChat";
+import {
+  LiveKitRoom,
+  RoomAudioRenderer,
+  useVoiceAssistant,
+  BarVisualizer,
+  useRoomContext,
+} from "@livekit/components-react";
 
-type VoiceSource = {
-  slug: string;
-  name: string;
-  category: string;
-  score: number;
-};
+// --- LiveKit Voice Agent ---
 
 type VoiceStatus = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
+function VoiceVisualizer() {
+  const { state, audioTrack } = useVoiceAssistant();
+
+  const statusMap: Record<string, VoiceStatus> = {
+    disconnected: "idle",
+    connecting: "connecting",
+    initializing: "connecting",
+    listening: "listening",
+    thinking: "thinking",
+    speaking: "speaking",
+  };
+  const voiceStatus: VoiceStatus = statusMap[state] || "listening";
+
+  const statusLabels: Record<VoiceStatus, string> = {
+    idle: "",
+    connecting: "Подключение...",
+    listening: "Слушаю...",
+    thinking: "Думаю...",
+    speaking: "Отвечаю...",
+    error: "Ошибка связи",
+  };
+
+  const statusColor =
+    voiceStatus === "listening"
+      ? "text-green-600"
+      : voiceStatus === "thinking"
+        ? "text-yellow-600"
+        : voiceStatus === "speaking"
+          ? "text-blue-600"
+          : "text-gray-500";
+
+  const bgColor =
+    voiceStatus === "listening"
+      ? "bg-green-100"
+      : voiceStatus === "thinking"
+        ? "bg-yellow-100"
+        : voiceStatus === "speaking"
+          ? "bg-blue-100"
+          : "bg-gray-100";
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 py-8">
+      <div className={`flex h-24 w-24 items-center justify-center rounded-full ${bgColor}`}>
+        {audioTrack ? (
+          <BarVisualizer
+            state={state}
+            barCount={5}
+            trackRef={audioTrack}
+            style={{ width: 60, height: 60 }}
+          />
+        ) : (
+          <div
+            className={`flex h-14 w-14 items-center justify-center rounded-full ${
+              voiceStatus === "listening"
+                ? "bg-green-500 animate-pulse"
+                : voiceStatus === "thinking"
+                  ? "bg-yellow-500 animate-spin"
+                  : voiceStatus === "speaking"
+                    ? "bg-blue-500 animate-pulse"
+                    : "bg-gray-400"
+            }`}
+          >
+            <svg
+              className="h-7 w-7 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"
+              />
+            </svg>
+          </div>
+        )}
+      </div>
+
+      <p className={`text-sm font-medium ${statusColor}`}>
+        {statusLabels[voiceStatus]}
+      </p>
+    </div>
+  );
+}
+
+function DataChannelListener({ onSources }: { onSources: (sources: Source[]) => void }) {
+  const room = useRoomContext();
+
+  useEffect(() => {
+    const handleData = (payload: Uint8Array) => {
+      try {
+        const text = new TextDecoder().decode(payload);
+        const data = JSON.parse(text);
+        if (data.type === "sources" && Array.isArray(data.sources)) {
+          onSources(data.sources);
+        }
+      } catch {
+        // ignore non-JSON data
+      }
+    };
+
+    room.on("dataReceived", handleData);
+    return () => {
+      room.off("dataReceived", handleData);
+    };
+  }, [room, onSources]);
+
+  return null;
+}
+
 function useVoiceAgent() {
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>("idle");
-  const [partialText, setPartialText] = useState("");
-  const [lastResponse, setLastResponse] = useState("");
-  const [voiceSources, setVoiceSources] = useState<VoiceSource[]>([]);
-  const wsRef = useRef<WebSocket | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const playbackCtxRef = useRef<AudioContext | null>(null);
-  const audioQueueRef = useRef<ArrayBuffer[]>([]);
-  const isPlayingRef = useRef(false);
-
-  const playNextChunk = useCallback(async () => {
-    if (isPlayingRef.current || audioQueueRef.current.length === 0) return;
-    isPlayingRef.current = true;
-
-    if (!playbackCtxRef.current) {
-      playbackCtxRef.current = new AudioContext({ sampleRate: 24000 });
-    }
-    const ctx = playbackCtxRef.current;
-
-    while (audioQueueRef.current.length > 0) {
-      const chunk = audioQueueRef.current.shift()!;
-      const int16 = new Int16Array(chunk);
-      const float32 = new Float32Array(int16.length);
-      for (let i = 0; i < int16.length; i++) {
-        float32[i] = int16[i] / 32768;
-      }
-
-      const buffer = ctx.createBuffer(1, float32.length, 24000);
-      buffer.getChannelData(0).set(float32);
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(ctx.destination);
-
-      await new Promise<void>((resolve) => {
-        source.onended = () => resolve();
-        source.start();
-      });
-    }
-
-    isPlayingRef.current = false;
-  }, []);
+  const [token, setToken] = useState("");
+  const [livekitUrl, setLivekitUrl] = useState("");
 
   const connect = useCallback(async () => {
-    if (wsRef.current) return;
     setVoiceStatus("connecting");
-    setPartialText("");
-    setLastResponse("");
-
     try {
-      // Get microphone
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          sampleRate: 24000,
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-        },
-      });
-      streamRef.current = stream;
+      const resp = await fetch("/api/agent/token", { method: "POST" });
+      if (!resp.ok) throw new Error("Failed to get token");
+      const data = await resp.json();
 
-      // WebSocket
-      const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const ws = new WebSocket(`${proto}//${window.location.host}/voice/ws`);
-      wsRef.current = ws;
+      // LiveKit URL: use the browser-accessible URL
+      // In Docker, the backend returns ws://livekit:7880, but browser needs ws://localhost:7880
+      let url = data.url as string;
+      if (url.includes("livekit:")) {
+        url = url.replace("livekit:", "localhost:");
+      }
 
-      ws.binaryType = "arraybuffer";
-
-      ws.onopen = () => {
-        setVoiceStatus("listening");
-        // Send config
-        ws.send(JSON.stringify({ type: "config", session_id: 0 }));
-
-        // Set up audio capture: ScriptProcessorNode to get PCM
-        const audioCtx = new AudioContext({ sampleRate: 24000 });
-        audioCtxRef.current = audioCtx;
-        const source = audioCtx.createMediaStreamSource(stream);
-        // 4096 samples buffer, mono in, no out
-        const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-        processorRef.current = processor;
-
-        processor.onaudioprocess = (e) => {
-          if (ws.readyState !== WebSocket.OPEN) return;
-          const float32 = e.inputBuffer.getChannelData(0);
-          // Convert float32 → int16 PCM
-          const int16 = new Int16Array(float32.length);
-          for (let i = 0; i < float32.length; i++) {
-            const s = Math.max(-1, Math.min(1, float32[i]));
-            int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-          }
-          ws.send(int16.buffer);
-        };
-
-        source.connect(processor);
-        processor.connect(audioCtx.destination);
-      };
-
-      ws.onmessage = (event) => {
-        if (event.data instanceof ArrayBuffer) {
-          // Audio data from TTS
-          audioQueueRef.current.push(event.data);
-          playNextChunk();
-          return;
-        }
-
-        const data = JSON.parse(event.data);
-        switch (data.type) {
-          case "partial":
-            setPartialText(data.text);
-            break;
-          case "transcript":
-            setPartialText("");
-            break;
-          case "response":
-            setLastResponse(data.text);
-            break;
-          case "audio_end":
-            // All audio sent
-            break;
-          case "sources":
-            if (Array.isArray(data.sources)) {
-              setVoiceSources(data.sources);
-            }
-            break;
-          case "interrupt":
-            // Barge-in: stop audio playback
-            audioQueueRef.current = [];
-            isPlayingRef.current = false;
-            if (playbackCtxRef.current) {
-              playbackCtxRef.current.close();
-              playbackCtxRef.current = null;
-            }
-            break;
-          case "status":
-            if (data.status === "thinking") setVoiceStatus("thinking");
-            else if (data.status === "speaking") setVoiceStatus("speaking");
-            else if (data.status === "listening") setVoiceStatus("listening");
-            break;
-          case "error":
-            console.error("Voice error:", data.message);
-            break;
-        }
-      };
-
-      ws.onclose = () => {
-        disconnect();
-      };
-
-      ws.onerror = () => {
-        disconnect();
-        setVoiceStatus("error");
-        setTimeout(() => setVoiceStatus("idle"), 3000);
-      };
+      setToken(data.token);
+      setLivekitUrl(url);
+      setVoiceStatus("listening");
     } catch (err) {
       console.error("Voice connection failed:", err);
-      disconnect();
       setVoiceStatus("error");
       setTimeout(() => setVoiceStatus("idle"), 3000);
     }
-  }, [playNextChunk]);
+  }, []);
 
   const disconnect = useCallback(() => {
-    if (processorRef.current) {
-      processorRef.current.disconnect();
-      processorRef.current = null;
-    }
-    if (audioCtxRef.current) {
-      audioCtxRef.current.close();
-      audioCtxRef.current = null;
-    }
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    audioQueueRef.current = [];
-    isPlayingRef.current = false;
+    setToken("");
+    setLivekitUrl("");
     setVoiceStatus("idle");
-    setPartialText("");
-    setVoiceSources([]);
   }, []);
 
   const toggle = useCallback(() => {
@@ -207,23 +168,10 @@ function useVoiceAgent() {
     }
   }, [voiceStatus, connect, disconnect]);
 
-  useEffect(() => {
-    return () => {
-      disconnect();
-    };
-  }, [disconnect]);
-
-  return { voiceStatus, partialText, lastResponse, voiceSources, toggle };
+  return { voiceStatus, token, livekitUrl, toggle, disconnect };
 }
 
-const voiceStatusLabels: Record<VoiceStatus, string> = {
-  idle: "",
-  connecting: "Подключение...",
-  listening: "Слушаю...",
-  thinking: "Думаю...",
-  speaking: "Отвечаю...",
-  error: "Ошибка связи",
-};
+// --- Main Page ---
 
 export function AgentPage() {
   const {
@@ -240,14 +188,17 @@ export function AgentPage() {
     deleteSession,
   } = useAgentChat();
 
-  const { voiceStatus, partialText, lastResponse, voiceSources, toggle: toggleVoice } = useVoiceAgent();
+  const { voiceStatus, token, livekitUrl, toggle: toggleVoice, disconnect: disconnectVoice } =
+    useVoiceAgent();
 
+  const [voiceSources, setVoiceSources] = useState<Source[]>([]);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
 
-  const isVoiceActive = voiceStatus !== "idle" && voiceStatus !== "error" && voiceStatus !== "connecting";
+  const isVoiceActive = !!token && voiceStatus !== "idle" && voiceStatus !== "error";
+  const displaySources = isVoiceActive ? voiceSources : sources;
 
   useEffect(() => {
     loadSessions();
@@ -277,6 +228,10 @@ export function AgentPage() {
       handleSubmit(e);
     }
   };
+
+  const handleVoiceSources = useCallback((newSources: Source[]) => {
+    setVoiceSources(newSources);
+  }, []);
 
   return (
     <div className="-mx-6 -my-8 flex h-[calc(100vh-3rem)] gap-0">
@@ -312,8 +267,18 @@ export function AgentPage() {
               className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600 transition-colors hover:bg-red-50"
               title="Удалить чат"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                />
               </svg>
             </button>
           )}
@@ -324,68 +289,40 @@ export function AgentPage() {
           {messages.length === 0 && !isVoiceActive && (
             <div className="flex h-full items-center justify-center">
               <div className="text-center text-gray-400">
-                <svg className="mx-auto mb-3 h-12 w-12" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+                <svg
+                  className="mx-auto mb-3 h-12 w-12"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1}
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"
+                  />
                 </svg>
                 <p className="text-sm font-medium">Задайте вопрос агенту</p>
-                <p className="mt-1 text-xs">Агент ответит на основе базы знаний и прайс-листа</p>
+                <p className="mt-1 text-xs">
+                  Агент ответит на основе базы знаний и прайс-листа
+                </p>
               </div>
             </div>
           )}
 
-          {/* Voice mode display */}
+          {/* Voice mode: LiveKit room */}
           {isVoiceActive && (
-            <div className="flex flex-col items-center justify-center gap-4 py-8">
-              {/* Animated mic indicator */}
-              <div className={`flex h-20 w-20 items-center justify-center rounded-full ${
-                voiceStatus === "listening"
-                  ? "bg-green-100"
-                  : voiceStatus === "thinking"
-                    ? "bg-yellow-100"
-                    : voiceStatus === "speaking"
-                      ? "bg-blue-100"
-                      : "bg-gray-100"
-              }`}>
-                <div className={`flex h-14 w-14 items-center justify-center rounded-full ${
-                  voiceStatus === "listening"
-                    ? "bg-green-500 animate-pulse"
-                    : voiceStatus === "thinking"
-                      ? "bg-yellow-500 animate-spin"
-                      : voiceStatus === "speaking"
-                        ? "bg-blue-500 animate-pulse"
-                        : "bg-gray-400"
-                }`}>
-                  <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
-                  </svg>
-                </div>
-              </div>
-
-              <p className={`text-sm font-medium ${
-                voiceStatus === "listening" ? "text-green-600" :
-                voiceStatus === "thinking" ? "text-yellow-600" :
-                voiceStatus === "speaking" ? "text-blue-600" :
-                "text-gray-500"
-              }`}>
-                {voiceStatusLabels[voiceStatus]}
-              </p>
-
-              {/* Show partial transcription */}
-              {partialText && (
-                <div className="max-w-md rounded-xl bg-gray-100 px-4 py-2 text-sm text-gray-600 italic">
-                  {partialText}
-                </div>
-              )}
-
-              {/* Show last response */}
-              {lastResponse && (
-                <div className="max-w-lg rounded-xl bg-blue-50 px-4 py-3 text-sm text-gray-800">
-                  <div className="prose prose-sm max-w-none">
-                    <Markdown>{lastResponse}</Markdown>
-                  </div>
-                </div>
-              )}
-            </div>
+            <LiveKitRoom
+              token={token}
+              serverUrl={livekitUrl}
+              connect={true}
+              audio={true}
+              onDisconnected={disconnectVoice}
+            >
+              <RoomAudioRenderer />
+              <VoiceVisualizer />
+              <DataChannelListener onSources={handleVoiceSources} />
+            </LiveKitRoom>
           )}
 
           {messages.map((msg, i) => (
@@ -411,17 +348,28 @@ export function AgentPage() {
             </div>
           ))}
 
-          {isStreaming && messages[messages.length - 1]?.role === "assistant" && !messages[messages.length - 1]?.content && (
-            <div className="flex justify-start">
-              <div className="rounded-2xl bg-gray-100 px-4 py-3">
-                <div className="flex gap-1">
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "0ms" }} />
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "150ms" }} />
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "300ms" }} />
+          {isStreaming &&
+            messages[messages.length - 1]?.role === "assistant" &&
+            !messages[messages.length - 1]?.content && (
+              <div className="flex justify-start">
+                <div className="rounded-2xl bg-gray-100 px-4 py-3">
+                  <div className="flex gap-1">
+                    <span
+                      className="h-2 w-2 animate-bounce rounded-full bg-gray-400"
+                      style={{ animationDelay: "0ms" }}
+                    />
+                    <span
+                      className="h-2 w-2 animate-bounce rounded-full bg-gray-400"
+                      style={{ animationDelay: "150ms" }}
+                    />
+                    <span
+                      className="h-2 w-2 animate-bounce rounded-full bg-gray-400"
+                      style={{ animationDelay: "300ms" }}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
           <div ref={messagesEndRef} />
         </div>
@@ -445,8 +393,18 @@ export function AgentPage() {
               }`}
               title={isVoiceActive ? "Отключить голос" : "Включить голосового агента"}
             >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"
+                />
               </svg>
             </button>
 
@@ -483,8 +441,18 @@ export function AgentPage() {
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                 title="Отправить"
               >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"
+                  />
                 </svg>
               </button>
             )}
@@ -498,18 +466,19 @@ export function AgentPage() {
           <h3 className="text-sm font-semibold text-gray-700">Источники</h3>
         </div>
         <div className="px-4 py-3 space-y-2">
-          {(() => {
-            const activeSources: Source[] = isVoiceActive && voiceSources.length > 0
-              ? voiceSources.map(s => ({ slug: s.slug, name: s.name, category: s.category, score: s.score }))
-              : sources;
-            return activeSources.length === 0 ? (
-              <p className="text-xs text-gray-400">Источники появятся после ответа агента</p>
-            ) : (
-              activeSources.map((source, i) => (
-                <SourceCard key={i} source={source} onClick={() => navigate(`/articles/${source.slug}`)} />
-              ))
-            );
-          })()}
+          {displaySources.length === 0 ? (
+            <p className="text-xs text-gray-400">
+              Источники появятся после ответа агента
+            </p>
+          ) : (
+            displaySources.map((source, i) => (
+              <SourceCard
+                key={i}
+                source={source}
+                onClick={() => navigate(`/articles/${source.slug}`)}
+              />
+            ))
+          )}
         </div>
       </div>
     </div>
@@ -519,9 +488,11 @@ export function AgentPage() {
 function SourceCard({ source, onClick }: { source: Source; onClick: () => void }) {
   const scorePercent = Math.round(source.score * 100);
   const scoreColor =
-    scorePercent >= 80 ? "text-green-600 bg-green-50" :
-    scorePercent >= 60 ? "text-yellow-600 bg-yellow-50" :
-    "text-gray-600 bg-gray-100";
+    scorePercent >= 80
+      ? "text-green-600 bg-green-50"
+      : scorePercent >= 60
+        ? "text-yellow-600 bg-yellow-50"
+        : "text-gray-600 bg-gray-100";
 
   return (
     <button
@@ -533,9 +504,13 @@ function SourceCard({ source, onClick }: { source: Source; onClick: () => void }
           <p className="text-sm font-medium text-gray-800 truncate">{source.name}</p>
           <p className="mt-0.5 text-xs text-gray-500">{source.category}</p>
         </div>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${scoreColor}`}>
-          {scorePercent}%
-        </span>
+        {scorePercent > 0 && (
+          <span
+            className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${scoreColor}`}
+          >
+            {scorePercent}%
+          </span>
+        )}
       </div>
     </button>
   );
