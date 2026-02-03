@@ -14,7 +14,7 @@ import os
 
 from livekit import agents, rtc
 from livekit.agents import AgentSession, Agent, ChatContext, ChatMessage, JobContext, cli
-from livekit.plugins import deepgram, openai, silero
+from livekit.plugins import openai, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from rag import RAGService
@@ -119,8 +119,8 @@ async def vet_clinic_agent(ctx: JobContext):
     tts_speed = float(os.getenv("TTS_SPEED", "1.15"))
 
     session = AgentSession(
-        stt=deepgram.STT(
-            model="nova-3",
+        stt=openai.STT(
+            model="whisper-1",
             language="ru",
         ),
         llm=openai.LLM(
