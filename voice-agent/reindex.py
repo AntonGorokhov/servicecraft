@@ -1,30 +1,27 @@
 """
-Re-index all articles in Qdrant with FastEmbed (multilingual-e5-large) embeddings.
-
-Replaces the previous OpenAI text-embedding-3-large vectors with local ONNX embeddings.
-Drops and recreates the Qdrant collection, then re-embeds all articles.
+Re-index all articles in Qdrant with OpenAI text-embedding-3-small embeddings.
 
 Usage:
-    python reindex.py                           # local
-    docker compose exec voice-agent python reindex.py   # via Docker
+    docker compose exec voice-agent python reindex.py
 """
 
 import json
 import logging
 import os
 import sys
+import time
 
 import requests
-from fastembed import TextEmbedding
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("reindex")
 
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "intfloat/multilingual-e5-large")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://qdrant:6333")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8080")
 COLLECTION_NAME = "articles"
-VECTOR_DIM = 1024
+VECTOR_DIM = 1536  # text-embedding-3-small
 
 
 def build_embedding_text(name: str, content) -> str:
@@ -50,19 +47,33 @@ def build_embedding_text(name: str, content) -> str:
     return ". ".join(parts)
 
 
+def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Embed a batch of texts via OpenAI API."""
+    resp = requests.post(
+        "https://api.openai.com/v1/embeddings",
+        json={"input": texts, "model": EMBEDDING_MODEL},
+        headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
+        timeout=30,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"OpenAI embedding error {resp.status_code}: {resp.text[:200]}")
+    data = resp.json()
+    return [item["embedding"] for item in data["data"]]
+
+
 def main():
-    logger.info(f"Loading embedding model: {EMBEDDING_MODEL}")
-    model = TextEmbedding(EMBEDDING_MODEL)
-    # Warmup
-    list(model.embed(["warmup"]))
-    logger.info("Model ready")
+    if not OPENAI_API_KEY:
+        logger.error("OPENAI_API_KEY is required")
+        sys.exit(1)
+
+    logger.info(f"Using embedding model: {EMBEDDING_MODEL} (dim={VECTOR_DIM})")
 
     # 1. Delete existing collection
     logger.info(f"Deleting collection '{COLLECTION_NAME}'...")
     resp = requests.delete(f"{QDRANT_URL}/collections/{COLLECTION_NAME}")
     logger.info(f"Delete: {resp.status_code}")
 
-    # 2. Create collection with 1024-dim cosine vectors
+    # 2. Create collection
     logger.info(f"Creating collection '{COLLECTION_NAME}' (dim={VECTOR_DIM}, cosine)...")
     resp = requests.put(
         f"{QDRANT_URL}/collections/{COLLECTION_NAME}",
@@ -86,44 +97,40 @@ def main():
         logger.info("No articles to index")
         return
 
-    # 4. Embed and upsert each article
-    for i, article in enumerate(articles):
-        article_id = article["id"]
-        slug = article["slug"]
-        name = article["name"]
-        category = article.get("category", "")
-        company_id = article.get("company_id", 0) or 0
+    # 4. Batch embed all articles
+    texts = []
+    for article in articles:
+        embed_text = build_embedding_text(article["name"], article.get("content"))
+        texts.append(embed_text)
 
-        embed_text = build_embedding_text(name, article.get("content"))
+    logger.info(f"Embedding {len(texts)} articles via OpenAI API...")
+    t0 = time.time()
+    vectors = embed_texts(texts)
+    logger.info(f"Embedded in {time.time() - t0:.1f}s")
 
-        logger.info(f"[{i + 1}/{len(articles)}] Embedding '{name}'...")
-        # multilingual-e5 expects "passage: " prefix for documents
-        vectors = list(model.embed([f"passage: {embed_text}"]))
-        vec = vectors[0].tolist()
-
-        resp = requests.put(
-            f"{QDRANT_URL}/collections/{COLLECTION_NAME}/points",
-            json={
-                "points": [
-                    {
-                        "id": article_id,
-                        "vector": vec,
-                        "payload": {
-                            "slug": slug,
-                            "name": name,
-                            "category": category,
-                            "company_id": company_id,
-                        },
-                    }
-                ],
+    # 5. Upsert all points
+    points = []
+    for article, vec in zip(articles, vectors):
+        points.append({
+            "id": article["id"],
+            "vector": vec,
+            "payload": {
+                "slug": article["slug"],
+                "name": article["name"],
+                "category": article.get("category", ""),
+                "company_id": article.get("company_id", 0) or 0,
             },
-        )
-        if resp.status_code != 200:
-            logger.error(f"Upsert failed for '{slug}': {resp.text}")
-            continue
+        })
 
-        logger.info(f"  indexed '{slug}' (dim={len(vec)})")
+    resp = requests.put(
+        f"{QDRANT_URL}/collections/{COLLECTION_NAME}/points",
+        json={"points": points},
+    )
+    if resp.status_code != 200:
+        logger.error(f"Upsert failed: {resp.text}")
+        sys.exit(1)
 
+    logger.info(f"Indexed {len(points)} articles (dim={len(vectors[0])})")
     logger.info("Re-indexing complete!")
 
 

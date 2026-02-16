@@ -1,7 +1,7 @@
 """
-RAG service: FastEmbed (local ONNX) → Qdrant (direct REST) → Backend (articles/prices).
+RAG service: OpenAI embeddings → Qdrant (direct REST) → Backend (articles/prices).
 
-Embedding: intfloat/multilingual-e5-large (1024-dim, quantized ONNX via FastEmbed)
+Embedding: OpenAI text-embedding-3-small (1536-dim, API ~50ms)
 Vector search: Qdrant REST API (direct, no Go backend roundtrip)
 Article content + price match: Go backend /api/agent/context
 """
@@ -11,17 +11,17 @@ import os
 from dataclasses import dataclass, field
 
 import aiohttp
-from fastembed import TextEmbedding
 
 logger = logging.getLogger("voice-agent.rag")
 
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "intfloat/multilingual-e5-large")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://qdrant:6333")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8080")
 DEFAULT_COMPANY_ID = int(os.getenv("DEFAULT_COMPANY_ID", "1"))
 COLLECTION_NAME = "articles"
 RAG_TOP_K = 5
-RAG_THRESHOLD = 0.5
+RAG_THRESHOLD = 0.3
 
 
 @dataclass
@@ -33,35 +33,38 @@ class RAGResult:
 
 class RAGService:
     def __init__(self):
-        self._model: TextEmbedding | None = None
         self._http: aiohttp.ClientSession | None = None
 
     async def initialize(self):
-        """Load embedding model (downloads on first run) and create HTTP session."""
-        logger.info(f"Loading embedding model: {EMBEDDING_MODEL}")
-        self._model = TextEmbedding(EMBEDDING_MODEL)
-        # Warmup — first inference is slower due to ONNX session init
-        list(self._model.embed(["warmup"]))
-        logger.info("Embedding model ready")
+        """Create HTTP session. No model to load — embeddings via OpenAI API."""
         self._http = aiohttp.ClientSession()
+        logger.info(f"RAG service ready (embedding: {EMBEDDING_MODEL} via API)")
 
     async def close(self):
         if self._http:
             await self._http.close()
 
-    def embed(self, text: str) -> list[float]:
-        """Embed a query string locally (~10ms). Returns list of floats."""
-        # multilingual-e5 models expect "query: " prefix for queries
-        vectors = list(self._model.embed([f"query: {text}"]))
-        return vectors[0].tolist()
+    async def embed(self, text: str) -> list[float]:
+        """Embed a query via OpenAI API (~50ms)."""
+        async with self._http.post(
+            "https://api.openai.com/v1/embeddings",
+            json={"input": text, "model": EMBEDDING_MODEL},
+            headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
+            timeout=aiohttp.ClientTimeout(total=5),
+        ) as resp:
+            if resp.status != 200:
+                body = await resp.text()
+                raise RuntimeError(f"OpenAI embedding error {resp.status}: {body[:200]}")
+            data = await resp.json()
+            return data["data"][0]["embedding"]
 
     async def search(self, query: str) -> RAGResult:
         """Full RAG pipeline: embed → Qdrant → fetch articles from backend."""
         result = RAGResult()
 
         try:
-            # 1. Embed locally (~10ms)
-            vec = self.embed(query)
+            # 1. Embed via API (~50ms)
+            vec = await self.embed(query)
 
             # 2. Search Qdrant directly (~50ms)
             matches = await self._qdrant_search(vec, DEFAULT_COMPANY_ID)

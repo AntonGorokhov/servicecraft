@@ -1,16 +1,13 @@
 package handlers
 
 import (
-	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"time"
-
-	"crypto/rand"
-	"encoding/hex"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -216,18 +213,11 @@ func (h *AgentHandler) ListArticlesInternal(c *gin.Context) {
 }
 
 // Token generates a LiveKit room token for the voice agent.
-// Creates a room and dispatches the vet-clinic agent.
+// The room is auto-created on join; agent is auto-dispatched by LiveKit.
 func (h *AgentHandler) Token(c *gin.Context) {
 	roomName := "vet-clinic-" + randomID()
 	identity := "caller-" + randomID()
 
-	// 1. Create LiveKit room + dispatch agent
-	if err := h.createRoomAndDispatch(roomName); err != nil {
-		fmt.Printf("[livekit] room creation warning: %v\n", err)
-		// Continue anyway — room may auto-create on join in dev mode
-	}
-
-	// 2. Generate participant token
 	token, err := h.generateLiveKitToken(roomName, identity)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
@@ -260,83 +250,6 @@ func (h *AgentHandler) generateLiveKitToken(room, identity string) (string, erro
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(h.livekitAPISecret))
-}
-
-// generateServerToken creates a server-level JWT for LiveKit API calls.
-func (h *AgentHandler) generateServerToken() (string, error) {
-	now := time.Now()
-	claims := jwt.MapClaims{
-		"iss": h.livekitAPIKey,
-		"nbf": jwt.NewNumericDate(now),
-		"exp": jwt.NewNumericDate(now.Add(time.Minute)),
-		"video": map[string]interface{}{
-			"roomCreate": true,
-			"roomAdmin":  true,
-			"room":       "*",
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(h.livekitAPISecret))
-}
-
-// createRoomAndDispatch creates a LiveKit room and dispatches the vet-clinic agent.
-func (h *AgentHandler) createRoomAndDispatch(roomName string) error {
-	serverToken, err := h.generateServerToken()
-	if err != nil {
-		return fmt.Errorf("generate server token: %w", err)
-	}
-
-	livekitHTTPURL := h.livekitURL
-	// Convert ws:// to http:// for API calls
-	if len(livekitHTTPURL) > 5 && livekitHTTPURL[:5] == "ws://" {
-		livekitHTTPURL = "http://" + livekitHTTPURL[5:]
-	} else if len(livekitHTTPURL) > 6 && livekitHTTPURL[:6] == "wss://" {
-		livekitHTTPURL = "https://" + livekitHTTPURL[6:]
-	}
-
-	client := &http.Client{Timeout: 5 * time.Second}
-
-	// Create room
-	roomBody, _ := json.Marshal(map[string]interface{}{
-		"name":            roomName,
-		"empty_timeout":   300,
-		"max_participants": 2,
-	})
-	req, _ := http.NewRequest("POST", livekitHTTPURL+"/twirp/livekit.RoomService/CreateRoom", bytes.NewReader(roomBody))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+serverToken)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("create room: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("create room %d: %s", resp.StatusCode, string(body))
-	}
-
-	// Dispatch agent
-	dispatchBody, _ := json.Marshal(map[string]interface{}{
-		"room":       roomName,
-		"agent_name": "vet-clinic",
-	})
-	req, _ = http.NewRequest("POST", livekitHTTPURL+"/twirp/livekit.AgentDispatchService/CreateDispatch", bytes.NewReader(dispatchBody))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+serverToken)
-
-	resp, err = client.Do(req)
-	if err != nil {
-		return fmt.Errorf("dispatch agent: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("dispatch agent %d: %s", resp.StatusCode, string(body))
-	}
-
-	return nil
 }
 
 // ListSessions returns user's chat sessions.

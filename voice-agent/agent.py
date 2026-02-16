@@ -15,7 +15,6 @@ import os
 from livekit import agents, rtc
 from livekit.agents import AgentSession, Agent, ChatContext, ChatMessage, JobContext, cli
 from livekit.plugins import openai, silero
-from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from rag import RAGService
 
@@ -59,8 +58,10 @@ SYSTEM_INSTRUCTIONS = """\
 """
 
 TTS_INSTRUCTIONS = (
-    "Говори быстро и естественно, как оператор колл-центра ветеринарной клиники. "
-    "Будь дружелюбной и профессиональной. Темп речи — энергичный, без длинных пауз."
+    "Speak in Russian with a natural native Russian accent and pronunciation. "
+    "You are a friendly professional call center operator. "
+    "Speak at a brisk, energetic pace with no long pauses — like a real phone operator. "
+    "Sound warm, confident, and helpful."
 )
 
 
@@ -73,7 +74,7 @@ class VetClinicAgent(Agent):
         self, turn_ctx: ChatContext, new_message: ChatMessage,
     ) -> None:
         """RAG injection: search KB on every user turn, inject context before LLM."""
-        text = new_message.text_content()
+        text = new_message.text_content
         if not text or len(text.strip()) < 3:
             return
 
@@ -108,14 +109,14 @@ class VetClinicAgent(Agent):
 server = agents.AgentServer()
 
 
-@server.rtc_session(agent_name="vet-clinic")
+@server.rtc_session()
 async def vet_clinic_agent(ctx: JobContext):
     await ctx.connect(auto_subscribe=agents.AutoSubscribe.AUDIO_ONLY)
 
     rag = RAGService()
     await rag.initialize()
 
-    tts_voice = os.getenv("TTS_VOICE", "ash")
+    tts_voice = os.getenv("TTS_VOICE", "nova")
     tts_speed = float(os.getenv("TTS_SPEED", "1.15"))
 
     session = AgentSession(
@@ -134,7 +135,6 @@ async def vet_clinic_agent(ctx: JobContext):
             instructions=TTS_INSTRUCTIONS,
         ),
         vad=silero.VAD.load(),
-        turn_detection=MultilingualModel(),
     )
 
     await session.start(
