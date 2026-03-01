@@ -1,13 +1,19 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 
 const tabs = [
   { to: "/articles", label: "Статьи" },
   { to: "/clusters", label: "Кластеры" },
   { to: "/graph", label: "Граф" },
-  { to: "/pipeline", label: "Pipeline" },
 ];
 
+const tabPaths = tabs.map((t) => t.to);
+
 export function ContentHeader() {
+  const { pathname } = useLocation();
+  const show = tabPaths.some((p) => pathname.startsWith(p));
+
+  if (!show) return null;
+
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200/60 bg-white/80 backdrop-blur-xl">
       <div className="flex h-12 items-center px-6">

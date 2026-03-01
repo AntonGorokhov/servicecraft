@@ -75,7 +75,7 @@ func (s *ArticleService) Update(companyID *uint, slug string, updates map[string
 // ListWithEmbeddings returns articles with their embedding vectors, filtered by company.
 func (s *ArticleService) ListWithEmbeddings(companyID *uint) ([]models.Article, error) {
 	var articles []models.Article
-	q := s.db.Select("id, company_id, slug, name, category, content, embedding")
+	q := s.db.Select("id, company_id, slug, name, category, content, embedding, embedding_text, embedding_model")
 	if companyID != nil {
 		q = q.Where("company_id = ?", *companyID)
 	}
@@ -88,6 +88,21 @@ func (s *ArticleService) ListWithEmbeddings(companyID *uint) ([]models.Article, 
 // UpdateEmbedding updates just the embedding field for an article.
 func (s *ArticleService) UpdateEmbedding(articleID uint, embedding json.RawMessage) error {
 	return s.db.Model(&models.Article{}).Where("id = ?", articleID).Update("embedding", embedding).Error
+}
+
+// UpdateEmbeddingText saves the source text and model used for embedding.
+func (s *ArticleService) UpdateEmbeddingText(articleID uint, text string, model string) error {
+	return s.db.Model(&models.Article{}).Where("id = ?", articleID).
+		Updates(map[string]interface{}{
+			"embedding_text":  text,
+			"embedding_model": model,
+		}).Error
+}
+
+// ClearAllEmbeddingMarkers resets the embedding marker so all articles get re-embedded.
+func (s *ArticleService) ClearAllEmbeddingMarkers() error {
+	return s.db.Model(&models.Article{}).Where("embedding IS NOT NULL").
+		Update("embedding", nil).Error
 }
 
 // ListAll returns all articles with content (for re-indexing).

@@ -22,6 +22,9 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
+// Mutex for token refresh — prevents multiple parallel refresh calls
+let refreshPromise: Promise<string> | null = null;
+
 client.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -31,12 +34,21 @@ client.interceptors.response.use(
       const refreshToken = localStorage.getItem("refresh_token");
       if (refreshToken) {
         try {
-          const res = await axios.post("/api/auth/refresh", {
-            refresh_token: refreshToken,
-          });
-          setAccessToken(res.data.access_token);
-          localStorage.setItem("refresh_token", res.data.refresh_token);
-          original.headers.Authorization = `Bearer ${res.data.access_token}`;
+          // If a refresh is already in progress, wait for it
+          if (!refreshPromise) {
+            refreshPromise = axios
+              .post("/api/auth/refresh", { refresh_token: refreshToken })
+              .then((res) => {
+                setAccessToken(res.data.access_token);
+                localStorage.setItem("refresh_token", res.data.refresh_token);
+                return res.data.access_token;
+              })
+              .finally(() => {
+                refreshPromise = null;
+              });
+          }
+          const newToken = await refreshPromise;
+          original.headers.Authorization = `Bearer ${newToken}`;
           return client(original);
         } catch {
           localStorage.removeItem("refresh_token");

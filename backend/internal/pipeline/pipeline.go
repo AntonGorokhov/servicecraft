@@ -2,22 +2,28 @@ package pipeline
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/vetkb/backend/internal/models"
 	"github.com/vetkb/backend/internal/services"
+	"gorm.io/gorm"
 )
 
 const (
-	similarityThreshold = 0.65
+	similarityThreshold = 0.50
+	embeddingModel      = "text-embedding-3-large"
+	embeddingDimensions = 1024
 )
 
 // Segment represents a topic segment extracted from the transcript.
@@ -52,6 +58,7 @@ type ProcessResult struct {
 type PipelineService struct {
 	replicate      *ReplicateClient
 	openaiKey      string
+	db             *gorm.DB
 	qdrant         *QdrantService
 	articleService *services.ArticleService
 	priceService   *services.PriceService
@@ -59,10 +66,11 @@ type PipelineService struct {
 	articleLocks   map[string]*sync.Mutex // per-slug locks for concurrent segment processing
 }
 
-func NewPipelineService(replicateToken string, openaiKey string, qdrant *QdrantService, articleService *services.ArticleService, priceService *services.PriceService) *PipelineService {
+func NewPipelineService(replicateToken string, openaiKey string, db *gorm.DB, qdrant *QdrantService, articleService *services.ArticleService, priceService *services.PriceService) *PipelineService {
 	return &PipelineService{
 		replicate:      NewReplicateClient(replicateToken),
 		openaiKey:      openaiKey,
+		db:             db,
 		qdrant:         qdrant,
 		articleService: articleService,
 		priceService:   priceService,
@@ -83,19 +91,20 @@ func (p *PipelineService) getArticleLock(slug string) *sync.Mutex {
 }
 
 // Process runs the full pipeline: transcribe → segment → classify (Qdrant) → enrich/create.
-func (p *PipelineService) Process(audioBase64 string, companyID *uint, callID string) (*ProcessResult, error) {
+func (p *PipelineService) Process(audioBytes []byte, fileName string, companyID *uint, callID string) (*ProcessResult, error) {
 	start := time.Now()
 
-	// Stage 1: Transcription
+	// Stage 1: Transcription (with SHA256 cache)
 	log.Println("[pipeline] Stage 1: Transcribing audio...")
-	transcript, err := p.transcribe(audioBase64)
+	rawTranscript, err := p.transcribeWithCache(audioBytes, fileName)
 	if err != nil {
 		return nil, fmt.Errorf("transcription failed: %w", err)
 	}
-	if strings.TrimSpace(transcript) == "" {
+	if strings.TrimSpace(rawTranscript) == "" {
 		return nil, fmt.Errorf("transcription returned empty text")
 	}
-	log.Printf("[pipeline] Transcript: %d chars", len(transcript))
+	transcript := cleanTranscript(rawTranscript)
+	log.Printf("[pipeline] Transcript: %d chars (cleaned from %d)", len(transcript), len(rawTranscript))
 
 	// Stage 2: Segmentation
 	log.Println("[pipeline] Stage 2: Segmenting transcript...")
@@ -133,33 +142,56 @@ func (p *PipelineService) Process(audioBase64 string, companyID *uint, callID st
 	}, nil
 }
 
-// transcribe calls gpt-4o-transcribe on Replicate.
-func (p *PipelineService) transcribe(audioBase64 string) (string, error) {
+// transcribeWithCache checks SHA256 cache before calling the STT API.
+func (p *PipelineService) transcribeWithCache(audioBytes []byte, fileName string) (string, error) {
+	hash := fmt.Sprintf("%x", sha256.Sum256(audioBytes))
+
+	// Check cache
+	var cached models.TranscriptionCache
+	if err := p.db.Where("file_hash = ?", hash).First(&cached).Error; err == nil {
+		log.Printf("[pipeline] STT cache hit for %s (hash=%s…)", fileName, hash[:12])
+		return cached.Transcript, nil
+	}
+
+	// Cache miss — call gpt-4o-transcribe
+	log.Printf("[pipeline] STT cache miss for %s (hash=%s…), calling gpt-4o-transcribe", fileName, hash[:12])
+
+	audioBase64 := base64Encode(audioBytes)
 	dataURI := "data:audio/mp3;base64," + audioBase64
 
 	output, err := p.replicate.RunModel("openai/gpt-4o-transcribe", map[string]interface{}{
 		"audio_file": dataURI,
 		"language":   "ru",
+		"prompt":     "Это звонок в ветеринарную клинику Зоомедик. Два участника: оператор клиники и клиент. Размечай реплики так: [Оператор]: текст реплики и [Клиент]: текст реплики. Первым обычно говорит оператор. Зоомедик, Дмитрия Ульянова, Ленинский, Борисовские пруды, Коломенская, Свободы, Эурикан, Нобивак, Биокан, лапароскопия, стерилизация, кастрация, ЭХО, УЗИ",
 	})
 	if err != nil {
 		return "", err
 	}
-	return extractLLMText(output), nil
+
+	transcript := extractLLMText(output)
+
+	// Store in cache
+	entry := models.TranscriptionCache{
+		FileHash:   hash,
+		FileName:   fileName,
+		Transcript: transcript,
+	}
+	if err := p.db.Create(&entry).Error; err != nil {
+		log.Printf("[pipeline] Warning: failed to cache transcription: %v", err)
+	}
+
+	return transcript, nil
 }
 
-// segment calls gpt-oss-20b to split the transcript into coarse topic segments.
+// segment calls the LLM to split the transcript into coarse topic segments.
 func (p *PipelineService) segment(transcript string) ([]Segment, error) {
 	prompt := fmt.Sprintf(segmentationPrompt, transcript)
 
-	output, err := p.replicate.RunModel("openai/gpt-oss-20b", map[string]interface{}{
-		"prompt":     prompt,
-		"max_tokens": 16384,
-	})
+	text, err := p.runLLM(prompt)
 	if err != nil {
 		return nil, err
 	}
 
-	text := extractLLMText(output)
 	text = stripCodeFences(text)
 
 	var segments []Segment
@@ -167,6 +199,25 @@ func (p *PipelineService) segment(transcript string) ([]Segment, error) {
 		return nil, fmt.Errorf("parse segments JSON: %w (raw: %.300s)", err, text)
 	}
 	return segments, nil
+}
+
+// runLLM calls the Replicate LLM with retry on error outputs.
+func (p *PipelineService) runLLM(prompt string) (string, error) {
+	for attempt := 0; attempt < 2; attempt++ {
+		output, err := p.replicate.RunModel("openai/gpt-oss-20b", map[string]interface{}{
+			"prompt":     prompt,
+			"max_tokens": 16384,
+		})
+		if err != nil {
+			return "", err
+		}
+		text := extractLLMText(output)
+		if !strings.HasPrefix(strings.TrimSpace(text), "[Error") {
+			return text, nil
+		}
+		log.Printf("[pipeline] LLM returned error output, retrying (attempt %d)", attempt+1)
+	}
+	return "", fmt.Errorf("LLM returned error after retries")
 }
 
 // GetEmbedding is a public wrapper for embedding generation.
@@ -177,9 +228,9 @@ func (p *PipelineService) GetEmbedding(text string) ([]float32, error) {
 // getEmbedding calls OpenAI text-embedding-3-large to get a 1024-dim vector.
 func (p *PipelineService) getEmbedding(text string) ([]float32, error) {
 	payload, _ := json.Marshal(map[string]interface{}{
-		"model":      "text-embedding-3-large",
+		"model":      embeddingModel,
 		"input":      text,
-		"dimensions": 1024,
+		"dimensions": embeddingDimensions,
 	})
 
 	req, err := http.NewRequest("POST", "https://api.openai.com/v1/embeddings", bytes.NewReader(payload))
@@ -245,9 +296,10 @@ func (p *PipelineService) IndexExistingArticles(companyID *uint) error {
 			continue
 		}
 
-		// Mark as indexed in PostgreSQL
+		// Mark as indexed and save embedding source text + model
 		marker, _ := json.Marshal(map[string]bool{"indexed": true})
 		p.articleService.UpdateEmbedding(a.ID, marker)
+		p.articleService.UpdateEmbeddingText(a.ID, embText, embeddingModel)
 		indexed++
 	}
 
@@ -257,16 +309,56 @@ func (p *PipelineService) IndexExistingArticles(companyID *uint) error {
 	return nil
 }
 
-// buildArticleEmbeddingText creates the text to embed for an article.
+// buildArticleEmbeddingText creates rich text to embed for an article.
+// Includes name, category, trigger phrases, conversation flow steps, FAQ questions, and services.
 func buildArticleEmbeddingText(a models.Article) string {
 	parts := []string{a.Name}
+	if a.Category != "" {
+		parts = append(parts, "Категория: "+a.Category)
+	}
 
 	var content map[string]interface{}
-	if err := json.Unmarshal(a.Content, &content); err == nil {
-		if phrases, ok := content["trigger_phrases"].([]interface{}); ok {
-			for _, p := range phrases {
-				if s, ok := p.(string); ok {
+	if err := json.Unmarshal(a.Content, &content); err != nil {
+		return strings.Join(parts, ". ")
+	}
+
+	// Trigger phrases
+	if phrases, ok := content["trigger_phrases"].([]interface{}); ok {
+		for _, p := range phrases {
+			if s, ok := p.(string); ok {
+				parts = append(parts, s)
+			}
+		}
+	}
+
+	// Conversation flow steps
+	if flow, ok := content["conversation_flow"].([]interface{}); ok {
+		for _, f := range flow {
+			if m, ok := f.(map[string]interface{}); ok {
+				if s, ok := m["step"].(string); ok {
 					parts = append(parts, s)
+				}
+			}
+		}
+	}
+
+	// FAQ questions
+	if faq, ok := content["faq"].([]interface{}); ok {
+		for _, f := range faq {
+			if m, ok := f.(map[string]interface{}); ok {
+				if q, ok := m["q"].(string); ok {
+					parts = append(parts, q)
+				}
+			}
+		}
+	}
+
+	// Service names
+	if svcs, ok := content["services_and_prices"].([]interface{}); ok {
+		for _, s := range svcs {
+			if m, ok := s.(map[string]interface{}); ok {
+				if name, ok := m["service"].(string); ok {
+					parts = append(parts, name)
 				}
 			}
 		}
@@ -400,15 +492,11 @@ func (p *PipelineService) enrichArticle(slug string, seg Segment, companyID *uin
 	}
 
 	prompt := fmt.Sprintf(enrichArticlePrompt, article.Name, string(article.Content), callID, seg.Text)
-	output, err := p.replicate.RunModel("openai/gpt-oss-20b", map[string]interface{}{
-		"prompt":     prompt,
-		"max_tokens": 16384,
-	})
+	text, err := p.runLLM(prompt)
 	if err != nil {
 		return fmt.Errorf("enrich LLM call: %w", err)
 	}
 
-	text := extractLLMText(output)
 	text = stripCodeFences(text)
 
 	var enrichedContent json.RawMessage
@@ -443,17 +531,13 @@ func (p *PipelineService) createNewArticle(seg Segment, companyID *uint, callID 
 	result.ArticleName = seg.SuggestedName
 
 	prompt := fmt.Sprintf(createArticlePrompt, seg.Topic, seg.Category, callID, seg.Text)
-	output, err := p.replicate.RunModel("openai/gpt-oss-20b", map[string]interface{}{
-		"prompt":     prompt,
-		"max_tokens": 16384,
-	})
+	text, err := p.runLLM(prompt)
 	if err != nil {
 		log.Printf("[pipeline] Warning: create article LLM failed for '%s': %v", seg.Topic, err)
 		result.Action = "creation_failed"
 		return result
 	}
 
-	text := extractLLMText(output)
 	text = stripCodeFences(text)
 
 	var content json.RawMessage
@@ -467,15 +551,23 @@ func (p *PipelineService) createNewArticle(seg Segment, companyID *uint, callID 
 	content = fixConversationFlow(content)
 	content = p.matchPrices(content)
 
+	// Build embedding text for persistence
+	embText := seg.Topic
+	if seg.SuggestedName != "" && seg.SuggestedName != seg.Topic {
+		embText = seg.Topic + ". " + seg.SuggestedName
+	}
+
 	now := time.Now().Format("2 Jan")
 	article := &models.Article{
-		CompanyID:   companyID,
-		Slug:        seg.SuggestedSlug,
-		Name:        seg.SuggestedName,
-		Category:    seg.Category,
-		CallCount:   1,
-		LastUpdated: now,
-		Content:     content,
+		CompanyID:      companyID,
+		Slug:           seg.SuggestedSlug,
+		Name:           seg.SuggestedName,
+		Category:       seg.Category,
+		CallCount:      1,
+		LastUpdated:    now,
+		Content:        content,
+		EmbeddingText:  embText,
+		EmbeddingModel: embeddingModel,
 	}
 
 	if err := p.articleService.Create(article); err != nil {
@@ -655,6 +747,169 @@ func (p *PipelineService) matchPrices(content json.RawMessage) json.RawMessage {
 		return content
 	}
 	return result
+}
+
+// cleanTranscript removes STT hallucination artifacts:
+// 1. Single word repeated 5+ times (e.g. "Спасибо. Спасибо. Спасибо. ...")
+// 2. Phrase (2-15 words) repeated 3+ times (e.g. a sentence block looping)
+// 3. Duplicated text blocks (tail duplicates earlier content)
+func cleanTranscript(text string) string {
+	// Step 1: Remove duplicated tail — if the last 30%+ of text duplicates an earlier block
+	text = removeDuplicatedTail(text)
+
+	// Step 2: Remove repeated phrases (multi-word patterns repeated 3+ times)
+	text = removeRepeatedPhrases(text)
+
+	// Step 3: Remove repeated single words (5+ consecutive)
+	text = removeRepeatedWords(text)
+
+	return strings.TrimSpace(text)
+}
+
+// removeDuplicatedTail detects when the tail of the text is a copy of an earlier block.
+func removeDuplicatedTail(text string) string {
+	runes := []rune(text)
+	n := len(runes)
+	if n < 200 {
+		return text
+	}
+
+	// Try chunk sizes from 20% to 40% of text
+	for pct := 20; pct <= 40; pct += 5 {
+		chunkSize := n * pct / 100
+		if chunkSize < 100 {
+			continue
+		}
+		tail := string(runes[n-chunkSize:])
+		// Search for this tail in the first 70% of text
+		searchArea := string(runes[:n-chunkSize])
+		if idx := strings.Index(searchArea, tail[:min(len(tail), 200)]); idx >= 0 {
+			// Verify it's a substantial match (not just a common short phrase)
+			matchEnd := idx + len([]rune(tail))
+			if matchEnd <= n-chunkSize+50 { // some tolerance
+				log.Printf("[pipeline] Detected duplicated tail (%d chars), trimming", chunkSize)
+				return string(runes[:n-chunkSize])
+			}
+		}
+	}
+	return text
+}
+
+// removeRepeatedPhrases detects multi-word phrases repeated 3+ times consecutively.
+func removeRepeatedPhrases(text string) string {
+	sentences := splitSentences(text)
+	if len(sentences) < 6 {
+		return text
+	}
+
+	// Normalize sentences for comparison
+	type sentRun struct {
+		normalized string
+		original   string
+		count      int
+	}
+
+	var result []string
+	i := 0
+	for i < len(sentences) {
+		// Try phrase lengths from 1 to 5 sentences
+		bestLen := 0
+		bestCount := 0
+		for phraseLen := 1; phraseLen <= 5 && i+phraseLen*3 <= len(sentences); phraseLen++ {
+			// Build the phrase from phraseLen consecutive sentences
+			phrase := normalizeSentence(strings.Join(sentences[i:i+phraseLen], " "))
+			count := 1
+			j := i + phraseLen
+			for j+phraseLen <= len(sentences) {
+				next := normalizeSentence(strings.Join(sentences[j:j+phraseLen], " "))
+				if next != phrase {
+					break
+				}
+				count++
+				j += phraseLen
+			}
+			if count >= 3 && count*phraseLen > bestCount*bestLen {
+				bestLen = phraseLen
+				bestCount = count
+			}
+		}
+
+		if bestCount >= 3 {
+			log.Printf("[pipeline] Detected repeated phrase (%d sentences x%d times), collapsing", bestLen, bestCount)
+			// Keep just one occurrence
+			for k := 0; k < bestLen; k++ {
+				result = append(result, sentences[i+k])
+			}
+			i += bestLen * bestCount
+		} else {
+			result = append(result, sentences[i])
+			i++
+		}
+	}
+
+	return strings.Join(result, " ")
+}
+
+// removeRepeatedWords detects single words repeated 5+ times consecutively.
+func removeRepeatedWords(text string) string {
+	words := regexp.MustCompile(`\S+`).FindAllString(text, -1)
+	if len(words) == 0 {
+		return text
+	}
+
+	var result []string
+	i := 0
+	for i < len(words) {
+		cleaned := strings.TrimRight(words[i], ".,!?;:")
+		if cleaned == "" {
+			result = append(result, words[i])
+			i++
+			continue
+		}
+
+		j := i + 1
+		for j < len(words) && strings.TrimRight(words[j], ".,!?;:") == cleaned {
+			j++
+		}
+
+		count := j - i
+		if count >= 5 {
+			result = append(result, cleaned+".")
+			i = j
+		} else {
+			result = append(result, words[i])
+			i++
+		}
+	}
+
+	return strings.TrimSpace(strings.Join(result, " "))
+}
+
+// splitSentences splits text into sentences on sentence-ending punctuation.
+func splitSentences(text string) []string {
+	// Split on . ! ? followed by space or end
+	re := regexp.MustCompile(`[.!?]+\s+`)
+	raw := re.Split(text, -1)
+	var result []string
+	for _, s := range raw {
+		s = strings.TrimSpace(s)
+		if len(s) > 5 {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+// normalizeSentence lowercases and strips punctuation for comparison.
+func normalizeSentence(s string) string {
+	s = strings.ToLower(s)
+	s = regexp.MustCompile(`[.,!?;:\-—"'()]+`).ReplaceAllString(s, "")
+	s = regexp.MustCompile(`\s+`).ReplaceAllString(s, " ")
+	return strings.TrimSpace(s)
+}
+
+func base64Encode(data []byte) string {
+	return base64.StdEncoding.EncodeToString(data)
 }
 
 // stripCodeFences removes markdown code fences from LLM output.

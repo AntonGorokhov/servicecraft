@@ -1,27 +1,40 @@
 package handlers
 
 import (
-	"encoding/base64"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/vetkb/backend/internal/models"
 	"github.com/vetkb/backend/internal/pipeline"
+	"github.com/vetkb/backend/internal/services"
+	"gorm.io/gorm"
 )
 
 type PipelineHandler struct {
 	pipelineService *pipeline.PipelineService
+	articleService  *services.ArticleService
+	db              *gorm.DB
 }
 
-func NewPipelineHandler(s *pipeline.PipelineService) *PipelineHandler {
-	return &PipelineHandler{pipelineService: s}
+func NewPipelineHandler(s *pipeline.PipelineService, as *services.ArticleService, db *gorm.DB) *PipelineHandler {
+	return &PipelineHandler{pipelineService: s, articleService: as, db: db}
 }
 
 // Reindex re-embeds and indexes all articles in Qdrant.
+// Pass ?force=true to clear all embedding markers and re-embed everything.
 func (h *PipelineHandler) Reindex(c *gin.Context) {
+	if c.Query("force") == "true" {
+		if err := h.articleService.ClearAllEmbeddingMarkers(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to clear markers: " + err.Error()})
+			return
+		}
+	}
 	if err := h.pipelineService.IndexExistingArticles(nil); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -84,15 +97,71 @@ func (h *PipelineHandler) Process(c *gin.Context) {
 		}
 	}
 
-	// Encode audio to base64
-	audioBase64 := base64.StdEncoding.EncodeToString(audioBytes)
-
 	// Run pipeline
-	result, err := h.pipelineService.Process(audioBase64, companyID, callID)
+	result, err := h.pipelineService.Process(audioBytes, header.Filename, companyID, callID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+// AudioClip serves an audio clip by call_id with optional start/end query params.
+// GET /api/audio/:call_id?start=10.5&end=25.3
+func (h *PipelineHandler) AudioClip(c *gin.Context) {
+	callID := c.Param("call_id")
+
+	// Find the transcription cache entry by filename match
+	var cache models.TranscriptionCache
+	search := callID + "%"
+	if err := h.db.Where("file_name LIKE ?", search).First(&cache).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Audio not found for call_id"})
+		return
+	}
+
+	if cache.AudioPath == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Audio file not stored"})
+		return
+	}
+
+	if _, err := os.Stat(cache.AudioPath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Audio file missing from disk"})
+		return
+	}
+
+	// Serve the full file — frontend handles start/end via Audio API
+	ext := filepath.Ext(cache.AudioPath)
+	contentType := "audio/mpeg"
+	if ext == ".wav" {
+		contentType = "audio/wav"
+	} else if ext == ".ogg" {
+		contentType = "audio/ogg"
+	}
+
+	c.Header("Accept-Ranges", "bytes")
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%q", cache.FileName))
+	c.File(cache.AudioPath)
+	_ = contentType // c.File sets content-type automatically
+}
+
+// TranscriptSegments returns diarized segments for a call_id.
+// GET /api/transcript/:call_id/segments
+func (h *PipelineHandler) TranscriptSegments(c *gin.Context) {
+	callID := c.Param("call_id")
+
+	var cache models.TranscriptionCache
+	search := callID + "%"
+	if err := h.db.Where("file_name LIKE ?", search).First(&cache).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Transcript not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"call_id":    callID,
+		"file_name":  cache.FileName,
+		"transcript": cache.Transcript,
+		"segments":   cache.Segments,
+		"audio_available": cache.AudioPath != "",
+	})
 }

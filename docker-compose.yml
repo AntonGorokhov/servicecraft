@@ -51,6 +51,8 @@ services:
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-devkey}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-devsecret}
       LIVEKIT_URL: ws://livekit:7880
+    volumes:
+      - audio_data:/app/audio
     depends_on:
       postgres:
         condition: service_healthy
@@ -113,3 +115,4 @@ services:
 volumes:
   pgdata:
   qdrant_data:
+  audio_data:

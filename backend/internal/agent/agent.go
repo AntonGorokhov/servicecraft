@@ -32,6 +32,7 @@ type AgentService struct {
 	pipeline    *pipeline.PipelineService
 	yandex      *YandexGPTClient
 	chatService *services.ChatService
+	faqService  *services.FAQService
 }
 
 func NewAgentService(
@@ -41,6 +42,7 @@ func NewAgentService(
 	pipelineSvc *pipeline.PipelineService,
 	yandex *YandexGPTClient,
 	chatService *services.ChatService,
+	faqService *services.FAQService,
 ) *AgentService {
 	return &AgentService{
 		qdrant:      qdrant,
@@ -49,6 +51,7 @@ func NewAgentService(
 		pipeline:    pipelineSvc,
 		yandex:      yandex,
 		chatService: chatService,
+		faqService:  faqService,
 	}
 }
 
@@ -170,8 +173,13 @@ func (a *AgentService) Query(
 		})
 	}
 
-	// 4. Fetch full article content for top matches
+	// 4. Fetch FAQ context (highest priority)
 	var contextParts []string
+	if faqContext := a.buildFAQContext(companyID); faqContext != "" {
+		contextParts = append(contextParts, faqContext)
+	}
+
+	// 5. Fetch full article content for top matches
 	limit := ragContextLimit
 	if len(matches) < limit {
 		limit = len(matches)
@@ -184,16 +192,16 @@ func (a *AgentService) Query(
 		contextParts = append(contextParts, formatArticleContext(article.Name, article.Content))
 	}
 
-	// 5. Price match
+	// 6. Price match
 	var priceContext string
 	if priceMatch := a.prices.MatchService(userMsg); priceMatch != nil {
 		priceContext = fmt.Sprintf("\nЦена из прайс-листа: %s — %d руб. (категория: %s)", priceMatch.Name, priceMatch.Price, priceMatch.Category)
 	}
 
-	// 6. Build system prompt
+	// 7. Build system prompt
 	systemPrompt := buildSystemPrompt(strings.Join(contextParts, "\n\n---\n\n"), priceContext)
 
-	// 7. Load conversation history
+	// 8. Load conversation history
 	var messages []Message
 	messages = append(messages, Message{Role: "system", Text: systemPrompt})
 
@@ -209,7 +217,7 @@ func (a *AgentService) Query(
 	// Add current user message
 	messages = append(messages, Message{Role: "user", Text: userMsg})
 
-	// 8. Stream response
+	// 9. Stream response
 	var fullResponse strings.Builder
 	err = a.yandex.StreamCompletion(ctx, messages, func(text string) {
 		fullResponse.WriteString(text)
@@ -219,7 +227,7 @@ func (a *AgentService) Query(
 		return sources, fmt.Errorf("yandex gpt stream: %w", err)
 	}
 
-	// 9. Save messages to DB
+	// 10. Save messages to DB
 	sourcesJSON, _ := json.Marshal(sources)
 	a.chatService.AddMessage(sessionID, "user", userMsg, nil)
 	a.chatService.AddMessage(sessionID, "assistant", fullResponse.String(), sourcesJSON)
@@ -228,7 +236,8 @@ func (a *AgentService) Query(
 }
 
 func (a *AgentService) streamWithoutRAG(ctx context.Context, userMsg string, sessionID uint, onChunk func(text string)) ([]Source, error) {
-	systemPrompt := buildSystemPrompt("", "")
+	faqContext := a.buildFAQContext(nil) // no company filter in fallback
+	systemPrompt := buildSystemPrompt(faqContext, "")
 
 	var messages []Message
 	messages = append(messages, Message{Role: "system", Text: systemPrompt})
@@ -255,6 +264,75 @@ func (a *AgentService) streamWithoutRAG(ctx context.Context, userMsg string, ses
 	a.chatService.AddMessage(sessionID, "assistant", fullResponse.String(), nil)
 
 	return nil, nil
+}
+
+// buildFAQContext loads all FAQ entries and formats them as priority context.
+func (a *AgentService) buildFAQContext(companyID *uint) string {
+	if a.faqService == nil {
+		return ""
+	}
+	faqs, err := a.faqService.List(companyID)
+	if err != nil || len(faqs) == 0 {
+		return ""
+	}
+
+	var parts []string
+	parts = append(parts, "═══ СПРАВОЧНАЯ ИНФОРМАЦИЯ О КЛИНИКЕ (ПРИОРИТЕТ) ═══")
+	for _, faq := range faqs {
+		parts = append(parts, formatFAQEntry(faq.Title, faq.Content))
+	}
+	return strings.Join(parts, "\n\n")
+}
+
+// formatFAQEntry formats a single FAQ entry for the system prompt.
+func formatFAQEntry(title string, content json.RawMessage) string {
+	var obj map[string]interface{}
+	if err := json.Unmarshal(content, &obj); err != nil {
+		return fmt.Sprintf("## %s\n(содержимое недоступно)", title)
+	}
+
+	var parts []string
+	parts = append(parts, fmt.Sprintf("## %s", title))
+
+	// Generic key-value rendering
+	for key, val := range obj {
+		switch v := val.(type) {
+		case string:
+			parts = append(parts, fmt.Sprintf("%s: %s", key, v))
+		case []interface{}:
+			var items []string
+			for _, item := range v {
+				switch it := item.(type) {
+				case string:
+					items = append(items, "- "+it)
+				case map[string]interface{}:
+					// Q&A format
+					if q, ok := it["q"].(string); ok {
+						a, _ := it["a"].(string)
+						items = append(items, fmt.Sprintf("В: %s\nО: %s", q, a))
+					} else if name, ok := it["name"].(string); ok {
+						// Branch or doctor format
+						line := name
+						if addr, ok := it["address"].(string); ok {
+							line += ", " + addr
+						}
+						if hours, ok := it["hours"].(string); ok {
+							line += " (" + hours + ")"
+						}
+						if spec, ok := it["specialty"].(string); ok {
+							line += " — " + spec
+						}
+						items = append(items, "- "+line)
+					}
+				}
+			}
+			if len(items) > 0 {
+				parts = append(parts, strings.Join(items, "\n"))
+			}
+		}
+	}
+
+	return strings.Join(parts, "\n")
 }
 
 func formatArticleContext(name string, content json.RawMessage) string {

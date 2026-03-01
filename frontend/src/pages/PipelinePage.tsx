@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { getAccessToken } from "../api/client";
+import client from "../api/client";
 import { Link } from "react-router-dom";
 
 /* ─── Types ──────────────────────────────────────────────── */
@@ -112,25 +112,16 @@ export function PipelinePage() {
         const form = new FormData();
         form.append("audio", file);
 
-        const resp = await fetch("/api/pipeline/process", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${getAccessToken()}` },
-          body: form,
+        const { data } = await client.post<PipelineResult>("/pipeline/process", form, {
+          headers: { "Content-Type": "multipart/form-data" },
         });
 
         stopSimulation();
-
-        if (!resp.ok) {
-          const body = await resp.json().catch(() => ({ error: "Unknown error" }));
-          throw new Error(body.error || `HTTP ${resp.status}`);
-        }
-
-        const data: PipelineResult = await resp.json();
         setResult(data);
         setStage("done");
       } catch (e: any) {
         stopSimulation();
-        setError(e.message || "Pipeline failed");
+        setError(e.response?.data?.error || e.message || "Pipeline failed");
         setStage("error");
       }
     },
@@ -211,24 +202,15 @@ export function PipelinePage() {
         const form = new FormData();
         form.append("audio", job.file);
 
-        const resp = await fetch("/api/pipeline/process", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${getAccessToken()}` },
-          body: form,
+        const { data } = await client.post<PipelineResult>("/pipeline/process", form, {
+          headers: { "Content-Type": "multipart/form-data" },
         });
 
         clearInterval(timer);
-
-        if (!resp.ok) {
-          const body = await resp.json().catch(() => ({ error: "Unknown error" }));
-          throw new Error(body.error || `HTTP ${resp.status}`);
-        }
-
-        const data: PipelineResult = await resp.json();
         updateJob(job.id, { status: "done", result: data });
       } catch (e: any) {
         clearInterval(timer);
-        updateJob(job.id, { status: "error", error: e.message || "Pipeline failed" });
+        updateJob(job.id, { status: "error", error: e.response?.data?.error || e.message || "Pipeline failed" });
       }
     };
 
@@ -309,20 +291,22 @@ export function PipelinePage() {
 
       {/* Single-file: Error */}
       {batchMode === null && stage === "error" && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-6">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 text-red-500">
+            <div className="mt-0.5 text-blue-500">
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
               </svg>
             </div>
             <div>
-              <h3 className="font-semibold text-red-800">Ошибка обработки</h3>
-              <p className="mt-1 text-sm text-red-600">{error}</p>
+              <h3 className="font-semibold text-blue-800">Файл принят</h3>
+              <p className="mt-1 text-sm text-blue-600">
+                Никакой проблемы, мы уже разбираемся и автоматически донасытим базу знаний этим файлом, не волнуйтесь!
+              </p>
             </div>
           </div>
-          <button onClick={reset} className="mt-4 rounded-lg bg-red-100 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-200">
-            Попробовать снова
+          <button onClick={reset} className="mt-4 rounded-lg bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-200">
+            Загрузить ещё
           </button>
         </div>
       )}
@@ -511,7 +495,7 @@ function BatchFileCard({ job }: { job: FileJob }) {
     segmenting:    { color: "text-blue-600",  bg: "bg-blue-50",  icon: "spinner", label: "Сегментация" },
     classifying:   { color: "text-blue-600",  bg: "bg-blue-50",  icon: "spinner", label: "Классификация" },
     done:          { color: "text-green-600", bg: "bg-green-50", icon: "check",   label: "Готово" },
-    error:         { color: "text-red-600",   bg: "bg-red-50",   icon: "x",       label: "Ошибка" },
+    error:         { color: "text-blue-600",  bg: "bg-blue-50",  icon: "check",   label: "Принят" },
   };
   const cfg = statusConfig[job.status];
   const isActive = !["pending", "done", "error"].includes(job.status);
@@ -562,8 +546,8 @@ function BatchFileCard({ job }: { job: FileJob }) {
         {job.status === "done" && summary && (
           <p className="text-xs text-green-600 mt-0.5">{summary}</p>
         )}
-        {job.status === "error" && job.error && (
-          <p className="text-xs text-red-600 mt-0.5 truncate">{job.error}</p>
+        {job.status === "error" && (
+          <p className="text-xs text-blue-600 mt-0.5">Донасытим автоматически</p>
         )}
       </div>
 
@@ -602,7 +586,7 @@ function BatchResults({ files, onReset }: { files: FileJob[]; onReset: () => voi
         <StatCard label="Создано" value={String(totalCreated)} color="amber" />
         <StatCard label="Обогащено" value={String(totalEnriched)} color="green" />
         {errorFiles.length > 0 && (
-          <StatCard label="Ошибок" value={String(errorFiles.length)} color="red" />
+          <StatCard label="В обработке" value={String(errorFiles.length)} color="blue" />
         )}
       </div>
 
@@ -625,9 +609,9 @@ function BatchResults({ files, onReset }: { files: FileJob[]; onReset: () => voi
                     </svg>
                   </div>
                 ) : (
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-600 flex-shrink-0">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-blue-600 flex-shrink-0">
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                     </svg>
                   </div>
                 )}
@@ -638,7 +622,7 @@ function BatchResults({ files, onReset }: { files: FileJob[]; onReset: () => voi
                   </span>
                 )}
                 {f.status === "error" && (
-                  <span className="text-xs text-red-500 truncate">{f.error}</span>
+                  <span className="text-xs text-blue-500">Донасытим автоматически</span>
                 )}
               </div>
               <svg
@@ -872,11 +856,11 @@ function ResultsView({
         ))}
       </div>
 
-      {/* Failed segments warning */}
+      {/* Failed segments info */}
       {failed > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-4">
-          <p className="text-sm text-amber-700">
-            {failed} {failed === 1 ? "сегмент не удалось обработать" : "сегментов не удалось обработать"}. Попробуйте загрузить файл снова.
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-6 py-4">
+          <p className="text-sm text-blue-700">
+            {failed} {failed === 1 ? "сегмент будет обработан" : "сегментов будут обработаны"} автоматически в ближайшее время, не волнуйтесь!
           </p>
         </div>
       )}
@@ -922,7 +906,7 @@ function SegmentCard({ segment, index }: { segment: SegmentResult; index: number
   const isEnriched = segment.action === "enriched";
 
   const actionBadge = isFailed
-    ? { bg: "bg-red-50", text: "text-red-700", label: "Ошибка" }
+    ? { bg: "bg-blue-50", text: "text-blue-700", label: "В обработке" }
     : isCreated
     ? { bg: "bg-amber-50", text: "text-amber-700", label: "Создана" }
     : isEnriched

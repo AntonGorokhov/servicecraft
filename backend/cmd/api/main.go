@@ -20,13 +20,14 @@ func main() {
 	db := database.Connect(cfg)
 
 	// AutoMigrate
-	if err := db.AutoMigrate(&models.Company{}, &models.User{}, &models.Article{}, &models.Comment{}, &models.ChatSession{}, &models.ChatMessage{}); err != nil {
+	if err := db.AutoMigrate(&models.Company{}, &models.User{}, &models.Article{}, &models.Comment{}, &models.ChatSession{}, &models.ChatMessage{}, &models.TranscriptionCache{}, &models.FAQ{}); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}
 
 	// Seed
 	models.SeedAdmin(db, cfg.AdminEmail, cfg.AdminPassword)
 	models.SeedArticles(db)
+	models.SeedFAQ(db)
 
 	// Price tree
 	priceTree, err := services.LoadPriceTree("price-tree.yaml")
@@ -42,6 +43,7 @@ func main() {
 	articleService := services.NewArticleService(db)
 	commentService := services.NewCommentService(db)
 	chatService := services.NewChatService(db)
+	faqService := services.NewFAQService(db)
 
 	// Qdrant
 	qdrantPort, _ := strconv.Atoi(cfg.QdrantPort)
@@ -52,11 +54,11 @@ func main() {
 	defer qdrantService.Close()
 
 	// Pipeline
-	pipelineService := pipeline.NewPipelineService(cfg.ReplicateToken, cfg.OpenAIAPIKey, qdrantService, articleService, priceService)
+	pipelineService := pipeline.NewPipelineService(cfg.ReplicateToken, cfg.OpenAIAPIKey, db, qdrantService, articleService, priceService)
 
 	// Agent (YandexGPT)
 	yandexClient := agent.NewYandexGPTClient(cfg.YandexGPTAPIKey, cfg.YandexGPTFolderID, cfg.YandexGPTModel)
-	agentService := agent.NewAgentService(qdrantService, articleService, priceService, pipelineService, yandexClient, chatService)
+	agentService := agent.NewAgentService(qdrantService, articleService, priceService, pipelineService, yandexClient, chatService, faqService)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
@@ -64,8 +66,9 @@ func main() {
 	companyHandler := handlers.NewCompanyHandler(companyService)
 	articleHandler := handlers.NewArticleHandler(articleService)
 	commentHandler := handlers.NewCommentHandler(commentService, articleService)
-	pipelineHandler := handlers.NewPipelineHandler(pipelineService)
+	pipelineHandler := handlers.NewPipelineHandler(pipelineService, articleService, db)
 	priceHandler := handlers.NewPriceHandler(priceService)
+	faqHandler := handlers.NewFAQHandler(faqService)
 	agentHandler := handlers.NewAgentHandler(agentService, chatService, cfg.LiveKitAPIKey, cfg.LiveKitAPISecret, cfg.LiveKitURL)
 
 	r := gin.Default()
@@ -107,6 +110,13 @@ func main() {
 	protected.PUT("/articles/:slug", articleHandler.Update)
 	protected.DELETE("/articles/:slug", articleHandler.Delete)
 
+	// FAQ routes (authenticated)
+	protected.GET("/faq", faqHandler.List)
+	protected.GET("/faq/:slug", faqHandler.GetBySlug)
+	protected.POST("/faq", faqHandler.Create)
+	protected.PUT("/faq/:slug", faqHandler.Update)
+	protected.DELETE("/faq/:slug", faqHandler.Delete)
+
 	// Comment routes (authenticated)
 	protected.GET("/articles/:slug/comments", commentHandler.List)
 	protected.POST("/articles/:slug/comments", commentHandler.Create)
@@ -114,6 +124,10 @@ func main() {
 
 	// Pipeline routes (admin or superadmin)
 	protected.POST("/pipeline/process", pipelineHandler.Process)
+
+	// Audio and transcript routes (authenticated)
+	protected.GET("/audio/:call_id", pipelineHandler.AudioClip)
+	protected.GET("/transcript/:call_id/segments", pipelineHandler.TranscriptSegments)
 
 	// Agent routes (authenticated)
 	protected.POST("/agent/chat", agentHandler.Chat)

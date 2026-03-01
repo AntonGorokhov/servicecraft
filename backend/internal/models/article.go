@@ -19,8 +19,10 @@ type Article struct {
 	Steps       int             `json:"steps" gorm:"default:0"`
 	Exceptions  int             `json:"exceptions" gorm:"default:0"`
 	LastUpdated string          `json:"last_updated"`
-	Content     json.RawMessage `json:"content" gorm:"type:jsonb;default:'{}'"`
-	Embedding   json.RawMessage `json:"-" gorm:"type:jsonb"`
+	Content        json.RawMessage `json:"content" gorm:"type:jsonb;default:'{}'"`
+	Embedding      json.RawMessage `json:"-" gorm:"type:jsonb"`
+	EmbeddingText  string          `json:"-" gorm:"type:text"`  // source text used for embedding
+	EmbeddingModel string          `json:"-" gorm:"type:text"`  // model used (e.g. text-embedding-3-large)
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
 }
