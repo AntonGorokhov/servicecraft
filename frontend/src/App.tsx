@@ -12,6 +12,10 @@ import { PipelinePage } from "./pages/PipelinePage";
 import { PriceTreePage } from "./pages/PriceTreePage";
 import { AgentPage } from "./pages/AgentPage";
 import { FAQPage } from "./pages/FAQPage";
+import { QuestionQueuePage } from "./pages/QuestionQueuePage";
+import { LensSettingsPage } from "./pages/LensSettingsPage";
+import { AnalyticsPage } from "./pages/AnalyticsPage";
+import { QAPage } from "./pages/QAPage";
 
 export default function App() {
   return (
@@ -27,6 +31,10 @@ export default function App() {
           <Route path="/price-tree" element={<PriceTreePage />} />
           <Route path="/faq" element={<FAQPage />} />
           <Route path="/agent" element={<AgentPage />} />
+          <Route path="/questions" element={<QuestionQueuePage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/qa" element={<QAPage />} />
+          <Route path="/settings" element={<LensSettingsPage />} />
           <Route path="/pipeline" element={<PipelinePage />} />
           <Route path="/companies" element={<CompaniesPage />} />
         </Route>

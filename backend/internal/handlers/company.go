@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -95,6 +96,40 @@ func (h *CompanyHandler) CreateUser(c *gin.Context) {
 		"role":       user.Role,
 		"company_id": user.CompanyID,
 	})
+}
+
+// GetSettings returns settings for the current user's company.
+func (h *CompanyHandler) GetSettings(c *gin.Context) {
+	companyID := getCompanyID(c)
+	if companyID == nil {
+		c.JSON(http.StatusOK, json.RawMessage(`{}`))
+		return
+	}
+	settings, err := h.companyService.GetSettings(*companyID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, settings)
+}
+
+// UpdateSettings saves settings for the current user's company.
+func (h *CompanyHandler) UpdateSettings(c *gin.Context) {
+	companyID := getCompanyID(c)
+	if companyID == nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "superadmin has no company"})
+		return
+	}
+	var settings json.RawMessage
+	if err := c.ShouldBindJSON(&settings); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.companyService.UpdateSettings(*companyID, settings); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, settings)
 }
 
 func (h *CompanyHandler) ListUsers(c *gin.Context) {

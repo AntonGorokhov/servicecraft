@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -70,6 +71,21 @@ func (s *CompanyService) CreateUser(companyID uint, email, password, name, role 
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 	return &user, nil
+}
+
+func (s *CompanyService) GetSettings(companyID uint) (json.RawMessage, error) {
+	var company models.Company
+	if err := s.db.First(&company, companyID).Error; err != nil {
+		return nil, err
+	}
+	if len(company.Settings) == 0 {
+		return json.RawMessage(`{}`), nil
+	}
+	return company.Settings, nil
+}
+
+func (s *CompanyService) UpdateSettings(companyID uint, settings json.RawMessage) error {
+	return s.db.Model(&models.Company{}).Where("id = ?", companyID).Update("settings", settings).Error
 }
 
 func (s *CompanyService) GetUsers(companyID uint) ([]models.User, error) {

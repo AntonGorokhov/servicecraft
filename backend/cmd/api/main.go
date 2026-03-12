@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 
@@ -15,12 +16,29 @@ import (
 	"github.com/vetkb/backend/internal/services"
 )
 
+// qIndexer implements services.QuestionIndexer using pipeline + qdrant + bm25.
+type qIndexer struct {
+	pipelineSvc *pipeline.PipelineService
+	qdrantSvc   *pipeline.QdrantService
+	bm25        *pipeline.BM25Encoder
+}
+
+func (i *qIndexer) IndexQuestion(questionID uint, question, answer, themeName string, frequency int, companyID *uint) error {
+	text := fmt.Sprintf("Q: %s A: %s", question, answer)
+	denseVec, err := i.pipelineSvc.GetEmbedding(text)
+	if err != nil {
+		return fmt.Errorf("embed: %w", err)
+	}
+	sparseVec := i.bm25.Encode(text)
+	return i.qdrantSvc.UpsertQA(questionID, question, answer, themeName, frequency, companyID, denseVec, sparseVec)
+}
+
 func main() {
 	cfg := config.Load()
 	db := database.Connect(cfg)
 
 	// AutoMigrate
-	if err := db.AutoMigrate(&models.Company{}, &models.User{}, &models.Article{}, &models.Comment{}, &models.ChatSession{}, &models.ChatMessage{}, &models.TranscriptionCache{}, &models.FAQ{}); err != nil {
+	if err := db.AutoMigrate(&models.Company{}, &models.User{}, &models.Article{}, &models.Comment{}, &models.ChatSession{}, &models.ChatMessage{}, &models.TranscriptionCache{}, &models.FAQ{}, &models.Question{}); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}
 
@@ -53,12 +71,32 @@ func main() {
 	}
 	defer qdrantService.Close()
 
+	if err := qdrantService.EnsureQACollection(); err != nil {
+		log.Fatalf("QA collection init failed: %v", err)
+	}
+
 	// Pipeline
 	pipelineService := pipeline.NewPipelineService(cfg.ReplicateToken, cfg.OpenAIAPIKey, db, qdrantService, articleService, priceService)
 
+	// BM25 encoder — built from all questions in DB
+	var bm25Corpus []string
+	var allQuestions []struct{ Question, Answer string }
+	db.Model(&models.Question{}).Select("question, answer").Find(&allQuestions)
+	for _, q := range allQuestions {
+		text := "Q: " + q.Question
+		if q.Answer != "" {
+			text += " A: " + q.Answer
+		}
+		bm25Corpus = append(bm25Corpus, text)
+	}
+	bm25Encoder := pipeline.NewBM25Encoder(bm25Corpus)
+	log.Printf("[bm25] encoder built: vocab=%d terms, corpus=%d docs", bm25Encoder.VocabSize(), len(bm25Corpus))
+
+	questionService := services.NewQuestionService(db, &qIndexer{pipelineSvc: pipelineService, qdrantSvc: qdrantService, bm25: bm25Encoder})
+
 	// Agent (YandexGPT)
 	yandexClient := agent.NewYandexGPTClient(cfg.YandexGPTAPIKey, cfg.YandexGPTFolderID, cfg.YandexGPTModel)
-	agentService := agent.NewAgentService(qdrantService, articleService, priceService, pipelineService, yandexClient, chatService, faqService)
+	agentService := agent.NewAgentService(qdrantService, articleService, priceService, pipelineService, yandexClient, chatService, faqService, bm25Encoder)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
@@ -70,6 +108,8 @@ func main() {
 	priceHandler := handlers.NewPriceHandler(priceService)
 	faqHandler := handlers.NewFAQHandler(faqService)
 	agentHandler := handlers.NewAgentHandler(agentService, chatService, cfg.LiveKitAPIKey, cfg.LiveKitAPISecret, cfg.LiveKitURL)
+	questionHandler := handlers.NewQuestionHandler(questionService)
+	yclientsHandler := handlers.NewYClientsHandler()
 
 	r := gin.Default()
 	r.Use(middleware.CORS())
@@ -134,6 +174,25 @@ func main() {
 	protected.GET("/agent/sessions", agentHandler.ListSessions)
 	protected.GET("/agent/sessions/:id/messages", agentHandler.GetMessages)
 	protected.DELETE("/agent/sessions/:id", agentHandler.DeleteSession)
+
+	// Company settings (authenticated, own company)
+	protected.GET("/settings", companyHandler.GetSettings)
+	protected.PUT("/settings", companyHandler.UpdateSettings)
+
+	// YClients CRM routes (authenticated)
+	protected.GET("/yclients/slots", yclientsHandler.GetSlots)
+	protected.POST("/yclients/book", yclientsHandler.Book)
+	protected.GET("/yclients/patient/:phone", yclientsHandler.GetPatient)
+
+	// Question queue routes (admin+)
+	protected.GET("/questions", questionHandler.List)
+	protected.GET("/questions/stats", questionHandler.Stats)
+	protected.GET("/questions/themes", questionHandler.Themes)
+	protected.POST("/questions/import", questionHandler.Import)
+	protected.GET("/questions/export", questionHandler.Export)
+	protected.PUT("/questions/:id/answer", questionHandler.SaveAnswer)
+	protected.POST("/questions/:id/accept-draft", questionHandler.AcceptDraft)
+	protected.POST("/questions/reindex", questionHandler.Reindex)
 
 	// Superadmin routes
 	admin := protected.Group("/admin")

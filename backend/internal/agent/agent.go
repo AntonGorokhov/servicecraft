@@ -9,6 +9,7 @@ import (
 
 	"github.com/vetkb/backend/internal/pipeline"
 	"github.com/vetkb/backend/internal/services"
+	"github.com/vetkb/backend/internal/yclients"
 )
 
 const (
@@ -33,6 +34,7 @@ type AgentService struct {
 	yandex      *YandexGPTClient
 	chatService *services.ChatService
 	faqService  *services.FAQService
+	bm25        *pipeline.BM25Encoder
 }
 
 func NewAgentService(
@@ -43,6 +45,7 @@ func NewAgentService(
 	yandex *YandexGPTClient,
 	chatService *services.ChatService,
 	faqService *services.FAQService,
+	bm25 *pipeline.BM25Encoder,
 ) *AgentService {
 	return &AgentService{
 		qdrant:      qdrant,
@@ -52,6 +55,7 @@ func NewAgentService(
 		yandex:      yandex,
 		chatService: chatService,
 		faqService:  faqService,
+		bm25:        bm25,
 	}
 }
 
@@ -147,61 +151,63 @@ func (a *AgentService) Query(
 	companyID *uint,
 	onChunk func(text string),
 ) ([]Source, error) {
-	// 1. Embed user message
+	// 1. Embed user message (dense)
 	vec, err := a.pipeline.GetEmbedding(userMsg)
 	if err != nil {
 		log.Printf("[agent] embedding failed: %v", err)
-		// Continue without RAG context
 		return a.streamWithoutRAG(ctx, userMsg, sessionID, onChunk)
 	}
 
-	// 2. Qdrant search
-	matches, err := a.qdrant.SearchSimilar(vec, companyID, ragTopK, ragThreshold)
+	// 2. BM25 encode (sparse)
+	sparseVec := a.bm25.Encode(userMsg)
+
+	// 3. Hybrid QA search (dense + sparse, RRF fusion)
+	qaMatches, err := a.qdrant.SearchQAHybrid(vec, sparseVec, companyID, ragTopK)
 	if err != nil {
-		log.Printf("[agent] qdrant search failed: %v", err)
+		log.Printf("[agent] qa hybrid search failed: %v", err)
 		return a.streamWithoutRAG(ctx, userMsg, sessionID, onChunk)
 	}
 
-	// 3. Build sources list
+	// 4. Build sources list
 	var sources []Source
-	for _, m := range matches {
+	for _, m := range qaMatches {
 		sources = append(sources, Source{
-			Slug:     m.Slug,
-			Name:     m.Name,
-			Category: m.Category,
+			Slug:     fmt.Sprintf("qa-%d", m.QuestionID),
+			Name:     m.Question,
+			Category: m.ThemeName,
 			Score:    m.Score,
 		})
 	}
 
-	// 4. Fetch FAQ context (highest priority)
+	// 5. FAQ context (highest priority)
 	var contextParts []string
 	if faqContext := a.buildFAQContext(companyID); faqContext != "" {
 		contextParts = append(contextParts, faqContext)
 	}
 
-	// 5. Fetch full article content for top matches
-	limit := ragContextLimit
-	if len(matches) < limit {
-		limit = len(matches)
-	}
-	for _, m := range matches[:limit] {
-		article, err := a.articles.GetBySlug(companyID, m.Slug)
-		if err != nil || article == nil {
-			continue
-		}
-		contextParts = append(contextParts, formatArticleContext(article.Name, article.Content))
+	// 6. Q&A knowledge base context
+	if len(qaMatches) > 0 {
+		contextParts = append(contextParts, buildQAContext(qaMatches))
 	}
 
-	// 6. Price match
+	// 7. Price match
 	var priceContext string
 	if priceMatch := a.prices.MatchService(userMsg); priceMatch != nil {
 		priceContext = fmt.Sprintf("\nЦена из прайс-листа: %s — %d руб. (категория: %s)", priceMatch.Name, priceMatch.Price, priceMatch.Category)
 	}
 
-	// 7. Build system prompt
+	// 8. YClients: inject available slots if appointment intent detected
+	if yclients.HasAppointmentIntent(userMsg) {
+		slots := yclients.GetSlots("")
+		if slotsCtx := yclients.FormatSlotsContext(slots); slotsCtx != "" {
+			contextParts = append(contextParts, slotsCtx)
+		}
+	}
+
+	// 9. Build system prompt
 	systemPrompt := buildSystemPrompt(strings.Join(contextParts, "\n\n---\n\n"), priceContext)
 
-	// 8. Load conversation history
+	// 10. Load conversation history
 	var messages []Message
 	messages = append(messages, Message{Role: "system", Text: systemPrompt})
 
@@ -217,7 +223,7 @@ func (a *AgentService) Query(
 	// Add current user message
 	messages = append(messages, Message{Role: "user", Text: userMsg})
 
-	// 9. Stream response
+	// 11. Stream response
 	var fullResponse strings.Builder
 	err = a.yandex.StreamCompletion(ctx, messages, func(text string) {
 		fullResponse.WriteString(text)
@@ -227,7 +233,7 @@ func (a *AgentService) Query(
 		return sources, fmt.Errorf("yandex gpt stream: %w", err)
 	}
 
-	// 10. Save messages to DB
+	// 12. Save messages to DB
 	sourcesJSON, _ := json.Marshal(sources)
 	a.chatService.AddMessage(sessionID, "user", userMsg, nil)
 	a.chatService.AddMessage(sessionID, "assistant", fullResponse.String(), sourcesJSON)
@@ -422,6 +428,15 @@ func formatArticleContext(name string, content json.RawMessage) string {
 	}
 
 	return strings.Join(parts, "\n")
+}
+
+func buildQAContext(matches []pipeline.QASearchResult) string {
+	var parts []string
+	parts = append(parts, "═══ БАЗА ЗНАНИЙ (Q&A) ═══")
+	for _, m := range matches {
+		parts = append(parts, fmt.Sprintf("В: %s\nО: %s", m.Question, m.Answer))
+	}
+	return strings.Join(parts, "\n\n")
 }
 
 func buildSystemPrompt(kbContext, priceContext string) string {
