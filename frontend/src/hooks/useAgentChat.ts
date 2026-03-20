@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { getAccessToken } from "../api/client";
 
 export interface ChatMessage {
@@ -27,9 +27,16 @@ export function useAgentChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [sessionId, setSessionId] = useState<number>(0);
+  const [sessionId, setSessionId] = useState<number>(
+    () => Number(localStorage.getItem("agent_session_id") || "0"),
+  );
   const [sessions, setSessions] = useState<Session[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (sessionId > 0) localStorage.setItem("agent_session_id", String(sessionId));
+    else localStorage.removeItem("agent_session_id");
+  }, [sessionId]);
 
   const loadSessions = useCallback(async () => {
     const token = getAccessToken();

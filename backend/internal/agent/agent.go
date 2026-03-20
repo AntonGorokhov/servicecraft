@@ -59,6 +59,8 @@ func NewAgentService(
 	}
 }
 
+func (a *AgentService) OpenAIKey() string { return a.pipeline.GetOpenAIKey() }
+
 // ContextResult holds RAG context without LLM response — for voice agent function calls.
 type ContextResult struct {
 	Context   string   `json:"context"`

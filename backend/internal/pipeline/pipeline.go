@@ -78,6 +78,8 @@ func NewPipelineService(replicateToken string, openaiKey string, db *gorm.DB, qd
 	}
 }
 
+func (p *PipelineService) GetOpenAIKey() string { return p.openaiKey }
+
 // getArticleLock returns a per-slug mutex, creating one if needed.
 func (p *PipelineService) getArticleLock(slug string) *sync.Mutex {
 	p.locksMu.Lock()

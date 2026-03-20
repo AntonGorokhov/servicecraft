@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -301,6 +303,58 @@ func (h *AgentHandler) DeleteSession(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "session deleted"})
+}
+
+// TTS proxies OpenAI text-to-speech and streams audio/mpeg back to the client.
+func (h *AgentHandler) TTS(c *gin.Context) {
+	var req struct {
+		Text  string `json:"text" binding:"required"`
+		Voice string `json:"voice"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "text is required"})
+		return
+	}
+	if req.Voice == "" {
+		req.Voice = "nova"
+	}
+
+	openaiKey := h.agentService.OpenAIKey()
+	if openaiKey == "" {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "OpenAI key not configured"})
+		return
+	}
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"model": "tts-1",
+		"input": req.Text,
+		"voice": req.Voice,
+	})
+
+	apiReq, err := http.NewRequestWithContext(c.Request.Context(), http.MethodPost,
+		"https://api.openai.com/v1/audio/speech", bytes.NewReader(body))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to build request"})
+		return
+	}
+	apiReq.Header.Set("Authorization", "Bearer "+openaiKey)
+	apiReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(apiReq)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "TTS request failed"})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("OpenAI TTS error: %d", resp.StatusCode)})
+		return
+	}
+
+	c.Header("Content-Type", "audio/mpeg")
+	c.Header("Cache-Control", "no-cache")
+	io.Copy(c.Writer, resp.Body)
 }
 
 func randomID() string {

@@ -171,6 +171,7 @@ func main() {
 
 	// Agent routes (authenticated)
 	protected.POST("/agent/chat", agentHandler.Chat)
+	protected.POST("/agent/tts", agentHandler.TTS)
 	protected.GET("/agent/sessions", agentHandler.ListSessions)
 	protected.GET("/agent/sessions/:id/messages", agentHandler.GetMessages)
 	protected.DELETE("/agent/sessions/:id", agentHandler.DeleteSession)

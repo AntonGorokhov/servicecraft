@@ -171,6 +171,45 @@ function useVoiceAgent() {
   return { voiceStatus, token, livekitUrl, toggle, disconnect };
 }
 
+// --- Speech Input ---
+
+function useSpeechInput(
+  onResult: (text: string) => void,
+  onInterim: (text: string) => void,
+) {
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const isSupported = "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
+
+  const toggle = useCallback(() => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    const rec: SpeechRecognition = new SR();
+    rec.lang = "ru-RU";
+    rec.interimResults = true;
+    rec.continuous = false;
+
+    rec.onresult = (e: SpeechRecognitionEvent) => {
+      const text = Array.from(e.results).map((r) => r[0].transcript).join("");
+      if (e.results[e.results.length - 1].isFinal) onResult(text);
+      else onInterim(text);
+    };
+    rec.onend = () => setIsRecording(false);
+    rec.onerror = () => setIsRecording(false);
+
+    rec.start();
+    recognitionRef.current = rec;
+    setIsRecording(true);
+  }, [isRecording, onResult, onInterim]);
+
+  return { isSupported, isRecording, toggle };
+}
+
 // --- Main Page ---
 
 export function AgentPage() {
@@ -193,6 +232,51 @@ export function AgentPage() {
 
   const [voiceSources, setVoiceSources] = useState<Source[]>([]);
   const [input, setInput] = useState("");
+
+  const { isSupported: isSpeechSupported, isRecording, toggle: toggleMic } = useSpeechInput(
+    (text) => setInput(text),
+    (text) => setInput(text),
+  );
+
+  const [ttsVoice, setTtsVoice] = useState("nova");
+  const [playingIdx, setPlayingIdx] = useState<number | null>(null);
+  const [loadingIdx, setLoadingIdx] = useState<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playMessage = useCallback(async (text: string, idx: number) => {
+    if (playingIdx === idx) {
+      audioRef.current?.pause();
+      audioRef.current = null;
+      setPlayingIdx(null);
+      return;
+    }
+    audioRef.current?.pause();
+    audioRef.current = null;
+    setPlayingIdx(null);
+
+    setLoadingIdx(idx);
+    try {
+      const token = (await import("../api/client")).getAccessToken();
+      const res = await fetch("/api/agent/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text, voice: ttsVoice }),
+      });
+      if (!res.ok) throw new Error("TTS failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      setLoadingIdx(null);
+      setPlayingIdx(idx);
+      audio.onended = () => { setPlayingIdx(null); URL.revokeObjectURL(url); };
+      audio.onerror = () => { setPlayingIdx(null); URL.revokeObjectURL(url); };
+      audio.play();
+    } catch {
+      setLoadingIdx(null);
+    }
+  }, [playingIdx, ttsVoice]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
@@ -202,7 +286,9 @@ export function AgentPage() {
 
   useEffect(() => {
     loadSessions();
-  }, [loadSessions]);
+    if (sessionId > 0) loadSession(sessionId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally run only on mount to restore last session
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -253,6 +339,16 @@ export function AgentPage() {
               <option key={s.id} value={s.id}>
                 {s.title}
               </option>
+            ))}
+          </select>
+          <select
+            value={ttsVoice}
+            onChange={(e) => setTtsVoice(e.target.value)}
+            className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-600 focus:border-blue-400 focus:outline-none"
+            title="Голос озвучки"
+          >
+            {["nova", "shimmer", "echo", "alloy", "fable", "onyx"].map((v) => (
+              <option key={v} value={v}>{v}</option>
             ))}
           </select>
           <button
@@ -330,19 +426,52 @@ export function AgentPage() {
               key={i}
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
-                  msg.role === "user"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-800"
-                }`}
-              >
-                {msg.role === "assistant" ? (
-                  <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2">
-                    <Markdown>{msg.content || "\u200B"}</Markdown>
+              <div className={`max-w-[80%] ${msg.role === "assistant" ? "group" : ""}`}>
+                <div
+                  className={`rounded-2xl px-4 py-2.5 text-sm ${
+                    msg.role === "user"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-800"
+                  }`}
+                >
+                  {msg.role === "assistant" ? (
+                    <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2">
+                      <Markdown>{msg.content || "\u200B"}</Markdown>
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  )}
+                </div>
+                {msg.role === "assistant" && msg.content && !isStreaming && (
+                  <div className="mt-1 flex justify-start opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => playMessage(msg.content, i)}
+                      title={playingIdx === i ? "\u041E\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C" : "\u041E\u0437\u0432\u0443\u0447\u0438\u0442\u044C"}
+                      className={`flex h-6 w-6 items-center justify-center rounded-full text-xs transition-colors ${
+                        loadingIdx === i
+                          ? "bg-gray-200 text-gray-400 animate-pulse cursor-wait"
+                          : playingIdx === i
+                          ? "bg-blue-100 text-blue-600 hover:bg-blue-200"
+                          : "bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                      }`}
+                    >
+                      {loadingIdx === i ? (
+                        <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                        </svg>
+                      ) : playingIdx === i ? (
+                        <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                          <rect x="6" y="6" width="4" height="12" rx="1"/>
+                          <rect x="14" y="6" width="4" height="12" rx="1"/>
+                        </svg>
+                      ) : (
+                        <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      )}
+                    </button>
                   </div>
-                ) : (
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
                 )}
               </div>
             </div>
@@ -392,6 +521,23 @@ export function AgentPage() {
                 t.style.height = Math.min(t.scrollHeight, 120) + "px";
               }}
             />
+            {isSpeechSupported && (
+              <button
+                type="button"
+                onClick={toggleMic}
+                title={isRecording ? "Остановить запись" : "Говорить"}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                  isRecording
+                    ? "bg-red-500 text-white animate-pulse"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round"
+                    d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+                </svg>
+              </button>
+            )}
             {isStreaming ? (
               <button
                 type="button"
