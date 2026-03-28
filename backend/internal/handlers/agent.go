@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -16,6 +17,34 @@ import (
 	"github.com/vetkb/backend/internal/agent"
 	"github.com/vetkb/backend/internal/services"
 )
+
+var ruAbbrevReplacements = []struct {
+	re   *regexp.Regexp
+	repl string
+}{
+	{regexp.MustCompile(`\(м\.\s*([^)]+)\)`),         "метро $1"},  // (м. Название) — до общего м.
+	{regexp.MustCompile(`д\.\s*(\d)`),                 "дом $1"},
+	{regexp.MustCompile(`кв\.\s*(\d)`),                "квартира $1"},
+	{regexp.MustCompile(`корп\.\s*(\d)`),              "корпус $1"},
+	{regexp.MustCompile(`стр\.\s*(\d)`),               "строение $1"},
+	{regexp.MustCompile(`эт\.\s*(\d)`),                "этаж $1"},
+	{regexp.MustCompile(`ул\.\s*`),                    "улица "},
+	{regexp.MustCompile(`пр-т\.?\s*`),                 "проспект "},
+	{regexp.MustCompile(`пр\.\s*`),                    "проспект "},
+	{regexp.MustCompile(`наб\.\s*`),                   "набережная "},
+	{regexp.MustCompile(`пер\.\s*`),                   "переулок "},
+	{regexp.MustCompile(`пл\.\s*`),                    "площадь "},
+	{regexp.MustCompile(`ш\.\s*`),                     "шоссе "},
+	{regexp.MustCompile(`м\.\s*`),                     "метро "},
+	{regexp.MustCompile(`(метро [^,\n/]+)/([^,\n]+)`), "$1, метро $2"},
+}
+
+func expandRussianAbbreviations(s string) string {
+	for _, r := range ruAbbrevReplacements {
+		s = r.re.ReplaceAllString(s, r.repl)
+	}
+	return s
+}
 
 type AgentHandler struct {
 	agentService     *agent.AgentService
@@ -327,7 +356,7 @@ func (h *AgentHandler) TTS(c *gin.Context) {
 
 	body, _ := json.Marshal(map[string]interface{}{
 		"model": "tts-1",
-		"input": req.Text,
+		"input": expandRussianAbbreviations(req.Text),
 		"voice": req.Voice,
 	})
 
