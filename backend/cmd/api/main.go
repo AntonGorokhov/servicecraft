@@ -38,7 +38,7 @@ func main() {
 	db := database.Connect(cfg)
 
 	// AutoMigrate
-	if err := db.AutoMigrate(&models.Company{}, &models.User{}, &models.Article{}, &models.Comment{}, &models.ChatSession{}, &models.ChatMessage{}, &models.TranscriptionCache{}, &models.FAQ{}, &models.Question{}); err != nil {
+	if err := db.AutoMigrate(&models.Company{}, &models.User{}, &models.Article{}, &models.Comment{}, &models.ChatSession{}, &models.ChatMessage{}, &models.TranscriptionCache{}, &models.TTSCache{}, &models.FAQ{}, &models.Question{}); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}
 
@@ -107,7 +107,7 @@ func main() {
 	pipelineHandler := handlers.NewPipelineHandler(pipelineService, articleService, db)
 	priceHandler := handlers.NewPriceHandler(priceService)
 	faqHandler := handlers.NewFAQHandler(faqService)
-	agentHandler := handlers.NewAgentHandler(agentService, chatService, cfg.LiveKitAPIKey, cfg.LiveKitAPISecret, cfg.LiveKitURL)
+	agentHandler := handlers.NewAgentHandler(agentService, chatService, db, cfg.LiveKitAPIKey, cfg.LiveKitAPISecret, cfg.LiveKitURL)
 	questionHandler := handlers.NewQuestionHandler(questionService)
 	yclientsHandler := handlers.NewYClientsHandler()
 

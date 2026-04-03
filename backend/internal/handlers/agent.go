@@ -3,10 +3,12 @@ package handlers
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -15,13 +17,26 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/vetkb/backend/internal/agent"
+	"github.com/vetkb/backend/internal/models"
 	"github.com/vetkb/backend/internal/services"
+	"gorm.io/gorm"
 )
 
 var ruAbbrevReplacements = []struct {
 	re   *regexp.Regexp
 	repl string
 }{
+	// --- Время (порядок важен: :00 до :ММ, ведущий ноль до двузначного) ---
+	{regexp.MustCompile(`0(\d):00\b`),            "$1 часов"},
+	{regexp.MustCompile(`(\d{1,2}):00\b`),        "$1 часов"},
+	{regexp.MustCompile(`0(\d):([0-5]\d)\b`),     "$1 часов $2 минут"},
+	{regexp.MustCompile(`(\d{1,2}):([0-5]\d)\b`), "$1 часов $2 минут"},
+
+	// --- Числа и единицы ---
+	{regexp.MustCompile(`(\d+)\s*%`),             "$1 процентов"},
+	{regexp.MustCompile(`(\d+)\s*руб\.`),         "$1 рублей"},
+
+	// --- Адресные сокращения ---
 	{regexp.MustCompile(`\(м\.\s*([^)]+)\)`),         "метро $1"},  // (м. Название) — до общего м.
 	{regexp.MustCompile(`д\.\s*(\d)`),                 "дом $1"},
 	{regexp.MustCompile(`кв\.\s*(\d)`),                "квартира $1"},
@@ -49,6 +64,7 @@ func expandRussianAbbreviations(s string) string {
 type AgentHandler struct {
 	agentService     *agent.AgentService
 	chatService      *services.ChatService
+	db               *gorm.DB
 	livekitAPIKey    string
 	livekitAPISecret string
 	livekitURL       string
@@ -57,11 +73,13 @@ type AgentHandler struct {
 func NewAgentHandler(
 	agentService *agent.AgentService,
 	chatService *services.ChatService,
+	db *gorm.DB,
 	livekitAPIKey, livekitAPISecret, livekitURL string,
 ) *AgentHandler {
 	return &AgentHandler{
 		agentService:     agentService,
 		chatService:      chatService,
+		db:               db,
 		livekitAPIKey:    livekitAPIKey,
 		livekitAPISecret: livekitAPISecret,
 		livekitURL:       livekitURL,
@@ -334,7 +352,7 @@ func (h *AgentHandler) DeleteSession(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "session deleted"})
 }
 
-// TTS proxies OpenAI text-to-speech and streams audio/mpeg back to the client.
+// TTS synthesizes speech via OpenAI TTS with a DB-backed cache keyed by SHA256(text+voice).
 func (h *AgentHandler) TTS(c *gin.Context) {
 	var req struct {
 		Text  string `json:"text" binding:"required"`
@@ -348,6 +366,21 @@ func (h *AgentHandler) TTS(c *gin.Context) {
 		req.Voice = "nova"
 	}
 
+	normalized := expandRussianAbbreviations(req.Text)
+
+	// Cache lookup
+	sum := sha256.Sum256([]byte(normalized + "|" + req.Voice))
+	hash := hex.EncodeToString(sum[:])
+
+	var cached models.TTSCache
+	if h.db != nil && h.db.Where("text_hash = ?", hash).First(&cached).Error == nil {
+		log.Printf("[tts] cache hit (hash=%s…)", hash[:12])
+		c.Header("Content-Type", "audio/mpeg")
+		c.Header("X-TTS-Cache", "hit")
+		c.Writer.Write(cached.AudioData)
+		return
+	}
+
 	openaiKey := h.agentService.OpenAIKey()
 	if openaiKey == "" {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "OpenAI key not configured"})
@@ -356,7 +389,7 @@ func (h *AgentHandler) TTS(c *gin.Context) {
 
 	body, _ := json.Marshal(map[string]interface{}{
 		"model": "tts-1",
-		"input": expandRussianAbbreviations(req.Text),
+		"input": normalized,
 		"voice": req.Voice,
 	})
 
@@ -381,9 +414,25 @@ func (h *AgentHandler) TTS(c *gin.Context) {
 		return
 	}
 
+	audio, err := io.ReadAll(resp.Body)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to read TTS response"})
+		return
+	}
+
+	// Store in cache (best-effort — don't fail the request if it errors)
+	if h.db != nil {
+		entry := models.TTSCache{TextHash: hash, AudioData: audio}
+		if err := h.db.Create(&entry).Error; err != nil {
+			log.Printf("[tts] cache write failed (hash=%s…): %v", hash[:12], err)
+		} else {
+			log.Printf("[tts] cache miss, stored %d bytes (hash=%s…)", len(audio), hash[:12])
+		}
+	}
+
 	c.Header("Content-Type", "audio/mpeg")
-	c.Header("Cache-Control", "no-cache")
-	io.Copy(c.Writer, resp.Body)
+	c.Header("X-TTS-Cache", "miss")
+	c.Writer.Write(audio)
 }
 
 func randomID() string {
