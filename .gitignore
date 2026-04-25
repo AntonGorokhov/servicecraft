@@ -22,3 +22,10 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+# Python virtual environments
+eval/.venv/
+.venv/
+venv/
+
+# Evaluation output (generated)
+eval/eval_results.json

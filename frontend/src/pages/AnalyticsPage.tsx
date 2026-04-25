@@ -18,9 +18,9 @@ interface TopQuestion {
 }
 
 const RAG_METRICS = [
-  { label: "BLEU", value: 0.41, color: "blue" },
-  { label: "ROUGE-L", value: 0.58, color: "indigo" },
-  { label: "BERTScore", value: 0.81, color: "violet" },
+  { label: "BLEU", value: 0.38, color: "blue" },
+  { label: "ROUGE-L", value: 0.41, color: "indigo" },
+  { label: "BERTScore", value: 0.80, color: "violet" },
 ];
 
 export function AnalyticsPage() {

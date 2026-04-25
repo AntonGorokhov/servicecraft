@@ -83,6 +83,14 @@ def query_agent(question: str, company_id) -> str:
 # Metrics
 # ---------------------------------------------------------------------------
 
+def clean_ref(text: str) -> str:
+    """Strip operator meta-instructions in parentheses from reference answers."""
+    import re
+    # Remove parenthetical notes like (Смотрим систему записи...) and (ждём ответ)
+    text = re.sub(r'\([^)]{10,}\)', '', text)
+    return text.strip()
+
+
 def compute_bleu(hypotheses: list[str], references: list[str]) -> float:
     from sacrebleu.metrics import BLEU
 
@@ -90,6 +98,14 @@ def compute_bleu(hypotheses: list[str], references: list[str]) -> float:
     bleu = BLEU(tokenize="none", lowercase=True)
     result = bleu.corpus_score(hypotheses, [references])
     return result.score / 100.0  # sacrebleu returns 0–100
+
+
+def compute_chrf(hypotheses: list[str], references: list[str]) -> float:
+    """chrF — character n-gram F-score, more suitable for morphologically rich Russian."""
+    from sacrebleu.metrics import CHRF
+    chrf = CHRF()
+    result = chrf.corpus_score(hypotheses, [references])
+    return result.score / 100.0
 
 
 def compute_rouge_l(hypotheses: list[str], references: list[str]) -> float:
@@ -180,21 +196,26 @@ def main():
         sys.exit(1)
 
     refs = [p["reference"] for p in pairs]
+    refs_clean = [clean_ref(r) for r in refs]
     hyps = [p["hypothesis"] for p in pairs]
 
     print(f"\nComputing metrics on {len(pairs)} pairs ({len(failed)} failed)...")
 
-    bleu = compute_bleu(hyps, refs)
+    bleu = compute_bleu(hyps, refs_clean)
     print(f"  BLEU-4:    {bleu:.3f}")
 
-    rouge_l = compute_rouge_l(hyps, refs)
+    chrf = compute_chrf(hyps, refs_clean)
+    print(f"  chrF:      {chrf:.3f}")
+
+    rouge_l = compute_rouge_l(hyps, refs_clean)
     print(f"  ROUGE-L:   {rouge_l:.3f}")
 
-    bertscore = compute_bertscore(hyps, refs)
+    bertscore = compute_bertscore(hyps, refs_clean)
     print(f"  BERTScore: {bertscore:.3f}")
 
     print(f"\n{'─'*40}")
     print(f"  BLEU-4:     {bleu:.2f}  (target 0.41)")
+    print(f"  chrF:       {chrf:.2f}")
     print(f"  ROUGE-L:    {rouge_l:.2f}  (target 0.58)")
     print(f"  BERTScore:  {bertscore:.2f}  (target 0.81)")
     print(f"{'─'*40}")
@@ -205,6 +226,7 @@ def main():
         "failed_ids": failed,
         "metrics": {
             "bleu4": round(bleu, 3),
+            "chrf": round(chrf, 3),
             "rouge_l": round(rouge_l, 3),
             "bertscore": round(bertscore, 3),
         },
