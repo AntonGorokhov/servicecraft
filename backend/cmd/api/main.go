@@ -1,9 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/vetkb/backend/internal/agent"
@@ -38,7 +44,7 @@ func main() {
 	db := database.Connect(cfg)
 
 	// AutoMigrate
-	if err := db.AutoMigrate(&models.Company{}, &models.User{}, &models.Article{}, &models.Comment{}, &models.ChatSession{}, &models.ChatMessage{}, &models.TranscriptionCache{}, &models.TTSCache{}, &models.FAQ{}, &models.Question{}); err != nil {
+	if err := db.AutoMigrate(&models.Company{}, &models.User{}, &models.Article{}, &models.Comment{}, &models.ChatSession{}, &models.ChatMessage{}, &models.TranscriptionCache{}, &models.TTSCache{}, &models.FAQ{}, &models.Question{}, &models.ArticleVersion{}, &models.Webhook{}, &models.WebhookDelivery{}, &models.AuditLog{}); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}
 
@@ -62,6 +68,11 @@ func main() {
 	commentService := services.NewCommentService(db)
 	chatService := services.NewChatService(db)
 	faqService := services.NewFAQService(db)
+	versionService := services.NewArticleVersionService(db)
+	webhookService := services.NewWebhookService(db)
+	auditService := services.NewAuditService(db)
+	exportService := services.NewExportService(db, articleService)
+	searchService := services.NewSearchService(db)
 
 	// Qdrant
 	qdrantPort, _ := strconv.Atoi(cfg.QdrantPort)
@@ -111,14 +122,24 @@ func main() {
 	questionHandler := handlers.NewQuestionHandler(questionService)
 	yclientsHandler := handlers.NewYClientsHandler()
 
+	qdrantURL := fmt.Sprintf("http://%s:%s", cfg.QdrantHost, cfg.QdrantPort)
+	healthHandler := handlers.NewHealthHandler(db, qdrantURL)
+	versionHandler := handlers.NewArticleVersionHandler(versionService, articleService)
+	webhookHandler := handlers.NewWebhookHandler(webhookService)
+	exportHandler := handlers.NewExportHandler(exportService)
+	batchHandler := handlers.NewBatchHandler(pipelineService)
+	analyticsHandler := handlers.NewAnalyticsHandler(db, auditService)
+	searchHandler := handlers.NewSearchHandler(searchService)
+
 	r := gin.Default()
 	r.Use(middleware.CORS())
+	r.Use(middleware.RequestLogger())
+	r.Use(middleware.RateLimit(120))
 
 	// Public routes
 	api := r.Group("/api")
-	api.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
-	})
+	api.GET("/health", healthHandler.Check)
+	api.GET("/ready", healthHandler.Ready)
 
 	auth := api.Group("/auth")
 	auth.POST("/login", authHandler.Login)
@@ -157,10 +178,40 @@ func main() {
 	protected.PUT("/faq/:slug", faqHandler.Update)
 	protected.DELETE("/faq/:slug", faqHandler.Delete)
 
+	// Article version routes (authenticated)
+	protected.GET("/articles/:slug/versions", versionHandler.ListVersions)
+	protected.GET("/articles/:slug/versions/:version", versionHandler.GetVersion)
+	protected.GET("/articles/:slug/versions/diff", versionHandler.DiffVersions)
+	protected.POST("/articles/:slug/versions/:version/restore", versionHandler.RestoreVersion)
+
 	// Comment routes (authenticated)
 	protected.GET("/articles/:slug/comments", commentHandler.List)
 	protected.POST("/articles/:slug/comments", commentHandler.Create)
 	protected.DELETE("/articles/:slug/comments/:id", commentHandler.Delete)
+
+	// Search routes (authenticated)
+	protected.GET("/search", searchHandler.Search)
+	protected.GET("/knowledge-graph", searchHandler.KnowledgeGraph)
+
+	// Analytics routes (authenticated)
+	protected.GET("/analytics/kb", analyticsHandler.KBOverview)
+	protected.GET("/analytics/audit", analyticsHandler.AuditLog)
+	protected.GET("/analytics/audit/stats", analyticsHandler.AuditStats)
+
+	// Export/Import routes (authenticated)
+	protected.GET("/export/json", exportHandler.ExportJSON)
+	protected.GET("/export/csv", exportHandler.ExportCSV)
+	protected.POST("/import/json", exportHandler.ImportJSON)
+
+	// Batch pipeline processing (admin)
+	protected.POST("/pipeline/batch", batchHandler.ProcessBatch)
+
+	// Webhook routes (admin)
+	protected.GET("/webhooks", webhookHandler.List)
+	protected.POST("/webhooks", webhookHandler.Create)
+	protected.PUT("/webhooks/:id", webhookHandler.Update)
+	protected.DELETE("/webhooks/:id", webhookHandler.Delete)
+	protected.GET("/webhooks/:id/deliveries", webhookHandler.Deliveries)
 
 	// Pipeline routes (admin or superadmin)
 	protected.POST("/pipeline/process", pipelineHandler.Process)
@@ -204,7 +255,28 @@ func main() {
 	admin.POST("/companies/:id/users", companyHandler.CreateUser)
 	admin.GET("/companies/:id/users", companyHandler.ListUsers)
 
-	if err := r.Run(":8080"); err != nil {
-		log.Fatalf("Server failed: %v", err)
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
 	}
+
+	go func() {
+		log.Println("Starting server on :8080")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+	log.Println("Server exited")
 }
