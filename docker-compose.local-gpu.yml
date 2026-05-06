@@ -1,0 +1,109 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: servicecraft
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  # Local embedding service (Text Embeddings Inference)
+  embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:1.5
+    command: --model-id intfloat/multilingual-e5-large --port 80
+    ports:
+      - "8081:80"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - hf_cache:/data
+
+  # Local STT (faster-whisper-server, OpenAI-compatible API)
+  stt:
+    image: fedirz/faster-whisper-server:latest
+    environment:
+      WHISPER__MODEL: large-v3
+      WHISPER__DEVICE: cuda
+      WHISPER__COMPUTE_TYPE: float16
+    ports:
+      - "8082:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - whisper_cache:/root/.cache
+
+  # Local LLM (Ollama)
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    volumes:
+      - ollama_data:/root/.ollama
+
+  backend:
+    build: ./backend
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: servicecraft
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: "6333"
+      INFERENCE_MODE: local
+      LOCAL_EMBEDDING_URL: http://embeddings:80
+      LOCAL_EMBEDDING_MODEL: intfloat/multilingual-e5-large
+      LOCAL_STT_URL: http://stt:8000
+      LOCAL_STT_MODEL: large-v3
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: qwen3:14b
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - qdrant
+      - embeddings
+      - stt
+      - ollama
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  qdrant_data:
+  hf_cache:
+  whisper_cache:
+  ollama_data:
